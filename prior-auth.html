@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Prior-authorization queue · Dermatology &amp; Skin Cancer Center</title>
+<title>Prior-authorization · Dermatology &amp; Skin Cancer Center</title>
 <link rel="icon" href="assets/img/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
@@ -26,6 +26,8 @@
 <script>
 TJ.mount({active:'auth', onReady:render});
 STORE.on(render);
+
+var tab='all'; // 'all' | 'pending' | 'approved'
 
 var STAGE_DOT={ 'Draft':'warn', 'Submitted':'idle', 'Pending insurer':'warn', 'Approved':'ok' };
 var STAGE_PILL={ 'Draft':'warn', 'Submitted':'neutral', 'Pending insurer':'warn', 'Approved':'ok' };
@@ -52,27 +54,49 @@ function hint(pa){
   }
 }
 
+function setTab(t){ tab=t; render(); }
+
 function render(){
   var data=STORE.data();
   var pa=data.priorAuth||[];
   var order=STORE.PA_ORDER;
 
-  // stage counts
+  // stage counts (across all)
   var counts={}; order.forEach(function(s){ counts[s]=0; });
   pa.forEach(function(p){ if(counts[p.stage]!=null) counts[p.stage]++; });
 
-  // assign deterministic appointment index by current order, then sort the worklist
+  // deterministic appointment index by current order
   var rows=pa.map(function(p,i){ return {pa:p, idx:i}; });
+
+  // filter for active tab
+  rows=rows.filter(function(r){
+    if(tab==='pending') return r.pa.stage!=='Approved';
+    if(tab==='approved') return r.pa.stage==='Approved';
+    return true;
+  });
+
+  // unapproved first, then ageDays DESC
   rows.sort(function(a,b){
     var ua=(a.pa.stage!=='Approved')?0:1, ub=(b.pa.stage!=='Approved')?0:1;
-    if(ua!==ub) return ua-ub;                 // unapproved first
-    return (b.pa.ageDays||0)-(a.pa.ageDays||0); // oldest stall next
+    if(ua!==ub) return ua-ub;
+    return (b.pa.ageDays||0)-(a.pa.ageDays||0);
   });
 
   var kpis=order.map(function(s){
     return '<div class="panel kpi">'+
       '<div class="v" style="display:flex;align-items:center;gap:9px"><span class="dot '+STAGE_DOT[s]+'"></span>'+counts[s]+'</div>'+
       '<div class="l">'+esc(s)+'</div></div>';
+  }).join('');
+
+  var needsAction=pa.filter(function(p){return p.stage!=='Approved';}).length;
+  var approvedCount=pa.filter(function(p){return p.stage==='Approved';}).length;
+  var tabs=[
+    ['all','All',pa.length],
+    ['pending','Needs action',needsAction],
+    ['approved','Approved',approvedCount]
+  ].map(function(t){
+    return '<button class="tab'+(tab===t[0]?' on':'')+'" onclick="setTab(\''+t[0]+'\')">'+esc(t[1])+
+      ' <span class="kcol-n" style="opacity:.8">('+t[2]+')</span></button>';
   }).join('');
 
   var list=rows.map(function(r){
@@ -86,31 +110,32 @@ function render(){
       '<div style="min-width:0;flex:1">'+
         '<div class="t">'+esc(p.proc)+' · CPT '+esc(p.cpt)+'</div>'+
         '<div class="d">'+sub+'</div>'+
-        '<div class="d" style="margin-top:4px;display:flex;align-items:center;gap:7px">'+
+        '<div class="d" style="margin-top:4px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">'+
           '<span class="pill '+STAGE_PILL[st]+'">'+esc(st)+'</span>'+
           '<span>'+hint(p)+'</span>'+
         '</div>'+
       '</div>'+
       action+
     '</div>';
-  }).join('') || '<div class="pad muted">No prior-authorizations in the queue.</div>';
+  }).join('') || '<div class="pad muted">No prior-authorizations in this view.</div>';
 
   document.getElementById('content').innerHTML=
     '<div class="page-head" style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">'+
       '<div style="flex:1;min-width:240px">'+
-        '<div class="eyebrow">Phase 2 · front desk</div>'+
+        '<div class="eyebrow">Front desk</div>'+
         '<h2>Prior-authorization queue</h2>'+
-        '<p>Sorted by what’s on fire — soonest blocked appointment first, oldest stall next.</p>'+
+        '<p>Sorted by what’s on fire — with who to call and one-tap advance.</p>'+
       '</div>'+
       '<button class="btn primary" onclick="newPA()">'+TJ.icon('plus','ico-sm')+'New prior-auth</button>'+
     '</div>'+
 
     '<div class="note" style="margin-top:0">'+TJ.icon('stetho')+
-      '<div>Dr. Giuffrida only sees the one PA blocking today’s schedule. Everything here is the front desk’s job — de-identified, HIPAA-safe.</div></div>'+
+      '<div>Dr. Giuffrida only sees the one PA blocking today’s schedule; everything here is the front desk’s job — de-identified, HIPAA-safe.</div></div>'+
 
     '<div class="grid g4" style="margin-top:18px">'+kpis+'</div>'+
 
-    '<div class="sec-title">'+TJ.icon('clock','ico-sm')+'The queue · most urgent first</div>'+
+    '<div class="tabbar" style="margin-top:22px">'+tabs+'</div>'+
+
     '<div class="panel">'+list+'</div>';
 }
 

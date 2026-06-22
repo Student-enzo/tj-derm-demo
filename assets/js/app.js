@@ -58,17 +58,18 @@
     ],
     staff: [
       {id:'dashboard-ops', label:'Home',  icon:'home', href:'dashboard-ops.html'},
-      {id:'stock',  label:'Inventory',    icon:'box',  href:'stock.html'},
+      {id:'inventory', label:'Inventory', icon:'box',  href:'inventory.html'},
       {id:'receive',label:'Receive',      icon:'scan', href:'receive-scan.html'},
-      {id:'alerts', label:'Alerts & Reorder', icon:'bell', href:'alerts.html', badge:5}
+      {id:'vendors', label:'Vendors',     icon:'truck', href:'vendors.html'},
+      {id:'spend',   label:'Spend',       icon:'zap',  href:'spend.html'}
     ],
     frontdesk: [
       {id:'auth', label:'Prior Authorization', icon:'shield', href:'prior-auth.html'}
     ]
   };
-  var ACTIVE_ROLE = { dashboard:'doctor', 'dashboard-ops':'staff', stock:'staff', receive:'staff', alerts:'staff', auth:'frontdesk' };
-  var TITLES = { dashboard:"Today", 'dashboard-ops':'Supply room', stock:'Inventory', receive:'Receive a delivery',
-    alerts:'Alerts & reorder', auth:'Prior-authorization queue' };
+  var ACTIVE_ROLE = { dashboard:'doctor', 'dashboard-ops':'staff', inventory:'staff', stock:'staff', receive:'staff', vendors:'staff', spend:'staff', alerts:'staff', auth:'frontdesk' };
+  var TITLES = { dashboard:"Today", 'dashboard-ops':'Supply room', inventory:'Inventory', stock:'Inventory', receive:'Receive a delivery',
+    vendors:'Vendors & settings', spend:'Supply spend', alerts:'Alerts & reorder', auth:'Prior-authorization queue' };
   var ROLE = {
     doctor:    {label:'Doctor',      who:'Dr. Giuffrida', sub:'Owner · review only', av:'TG'},
     staff:     {label:'Supply room', who:'Jess · MA',     sub:'Receives, counts, orders', av:'JS'},

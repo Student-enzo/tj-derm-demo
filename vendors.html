@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vendors &amp; settings · Dermatology &amp; Skin Cancer Center</title>
+<link rel="icon" href="assets/img/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="backdrop" onclick="TJ.toggleNav()"></div>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<script src="assets/js/store.js"></script>
+<script src="assets/js/inventory.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+var DN={Surgical:'Surgical',Lab:'Lab Reagents',LN2:'Liquid Nitrogen',Topical:'Topicals'};
+var DOMAINS=['Surgical','Lab','LN2','Topical'];
+
+// Standard Mohs case-consumption kit (static — mirrors store.js seed KIT)
+var MOHS_KIT=[
+  {itemId:'i-lido',  name:'Lidocaine 1%',      qty:1},
+  {itemId:'i-gauze', name:'Surgical gauze 4×4',qty:4},
+  {itemId:'i-cur',   name:'Curettes',          qty:1},
+  {itemId:'i-nylon', name:'4-0 Nylon',         qty:1},
+  {itemId:'i-tray',  name:'Mohs tray',         qty:1},
+  {itemId:'i-gloves',name:'Sterile gloves',    qty:2},
+  {itemId:'i-alcl',  name:'Aluminum chloride', qty:1}
+];
+
+var tab='vendors';
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function vendorOptions(sel){ return STORE.data().vendors.map(function(v){ return {value:v.id, label:v.name}; }); }
+
+/* ---------------- VENDORS TAB ---------------- */
+function openAddVendor(){
+  TJ.modal({
+    title:'Add vendor', sub:'A supplier you order inventory from',
+    fields:[
+      {name:'name',    label:'Vendor name', placeholder:'e.g. Henry Schein'},
+      {name:'acct',    label:'Account #',   placeholder:'e.g. 4471'},
+      {name:'leadDays',label:'Lead time (days)', type:'number', value:3},
+      {name:'email',   label:'Order email', type:'email', placeholder:'orders@vendor.com'}
+    ],
+    submitLabel:'Add vendor',
+    onSubmit:function(o){
+      if(!o.name||!o.name.trim()){ TJ.toast('Name required', false); return false; }
+      STORE.addVendor({name:o.name.trim(), acct:o.acct, leadDays:o.leadDays, email:o.email, user:'Jess'});
+      TJ.toast('Vendor added');
+    }
+  });
+}
+function openEditVendor(id){
+  var v=STORE.vendor(id); if(!v) return;
+  TJ.modal({
+    title:'Edit vendor', sub:v.name,
+    fields:[
+      {name:'name',    label:'Vendor name', value:v.name},
+      {name:'acct',    label:'Account #',   value:v.acct},
+      {name:'leadDays',label:'Lead time (days)', type:'number', value:v.leadDays},
+      {name:'email',   label:'Order email', type:'email', value:v.email}
+    ],
+    submitLabel:'Save',
+    onSubmit:function(o){
+      if(!o.name||!o.name.trim()){ TJ.toast('Name required', false); return false; }
+      STORE.editVendor({vendorId:id, name:o.name.trim(), acct:o.acct, leadDays:o.leadDays, email:o.email, user:'Jess'});
+      TJ.toast('Vendor updated');
+    }
+  });
+}
+function vendorsPane(){
+  var items=STORE.data().items;
+  var cards=STORE.data().vendors.map(function(v){
+    var n=items.filter(function(it){return it.vendorId===v.id;}).length;
+    return '<div class="panel pad">'+
+      '<div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px">'+
+        '<div><div class="it-name" style="font-size:16px">'+esc(v.name)+'</div>'+
+          '<div class="tiny" style="margin-top:3px">Account # '+esc(v.acct||'—')+'</div></div>'+
+        '<span class="pill neutral">'+n+' item'+(n===1?'':'s')+'</span>'+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:8px;margin:14px 0;font-size:13px">'+
+        '<div class="row" style="gap:8px;align-items:center">'+TJ.icon('clock','ico-sm')+'<span class="muted">Lead time</span><b style="margin-left:auto">'+(+v.leadDays||0)+' days</b></div>'+
+        '<div class="row" style="gap:8px;align-items:center">'+TJ.icon('truck','ico-sm')+'<span class="muted">Order email</span><b style="margin-left:auto;font-weight:600">'+esc(v.email||'—')+'</b></div>'+
+      '</div>'+
+      '<button class="btn ghost sm full" data-edit-vendor="'+v.id+'">'+TJ.icon('file','ico-sm')+'Edit</button>'+
+    '</div>';
+  }).join('');
+  return '<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:16px">'+
+      '<div class="muted" style="font-size:13.5px">Suppliers, account numbers, lead times and ordering contacts.</div>'+
+      '<button class="btn primary" id="addVendorBtn">'+TJ.icon('plus','ico-sm')+'Add vendor</button>'+
+    '</div>'+
+    '<div class="grid g3">'+cards+'</div>';
+}
+
+/* ---------------- ITEM SETTINGS TAB ---------------- */
+function openAddItem(){
+  TJ.modal({
+    title:'Add item', sub:'A new inventory SKU',
+    fields:[
+      {name:'name',        label:'Item name', placeholder:'e.g. 6-0 Nylon suture'},
+      {name:'domain',      label:'Domain', type:'select', value:'Surgical',
+        options:DOMAINS.map(function(d){return {value:d,label:DN[d]};})},
+      {name:'par',         label:'Par level', type:'number', value:0},
+      {name:'reorderPoint',label:'Reorder point', type:'number', value:0},
+      {name:'unitCost',    label:'Unit cost ($)', type:'number', value:0},
+      {name:'avgPerCase',  label:'Avg used per case', type:'number', value:0},
+      {name:'critical',    label:'JIC (critical)?', type:'select', value:'false',
+        options:[{value:'false',label:'No'},{value:'true',label:'Yes'}]},
+      {name:'vendorId',    label:'Vendor', type:'select', value:STORE.data().vendors[0].id, options:vendorOptions()}
+    ],
+    submitLabel:'Add item',
+    onSubmit:function(o){
+      if(!o.name||!o.name.trim()){ TJ.toast('Name required', false); return false; }
+      STORE.addItem({name:o.name.trim(), domain:o.domain, par:o.par, reorderPoint:o.reorderPoint,
+        unitCost:o.unitCost, avgPerCase:o.avgPerCase, critical:o.critical, vendorId:o.vendorId, user:'Jess'});
+      TJ.toast('Item added');
+    }
+  });
+}
+function openEditItem(id){
+  var it=STORE.item(id); if(!it) return;
+  TJ.modal({
+    title:'Edit item', sub:it.name,
+    fields:[
+      {name:'name',        label:'Item name', value:it.name},
+      {name:'par',         label:'Par level', type:'number', value:it.par},
+      {name:'reorderPoint',label:'Reorder point', type:'number', value:it.reorderPoint},
+      {name:'unitCost',    label:'Unit cost ($)', type:'number', value:it.unitCost},
+      {name:'avgPerCase',  label:'Avg used per case', type:'number', value:it.avgPerCase},
+      {name:'critical',    label:'JIC (critical)?', type:'select', value:it.critical?'true':'false',
+        options:[{value:'false',label:'No'},{value:'true',label:'Yes'}]},
+      {name:'vendorId',    label:'Vendor', type:'select', value:it.vendorId, options:vendorOptions()}
+    ],
+    submitLabel:'Save',
+    onSubmit:function(o){
+      if(!o.name||!o.name.trim()){ TJ.toast('Name required', false); return false; }
+      STORE.editItem({itemId:id, name:o.name.trim(), par:o.par, reorderPoint:o.reorderPoint,
+        unitCost:o.unitCost, avgPerCase:o.avgPerCase, critical:o.critical, vendorId:o.vendorId, user:'Jess'});
+      TJ.toast('Item updated');
+    }
+  });
+}
+function itemsPane(){
+  var rows=STORE.data().items.map(function(it){
+    var vn=(STORE.vendor(it.vendorId)||{}).name||'—';
+    var jic=it.critical?'<span class="pill warn">JIC</span>':'<span class="tiny">—</span>';
+    return '<tr>'+
+      '<td><div class="it-name">'+esc(it.name)+'</div><div class="it-sub">'+esc(it.sub||'')+'</div></td>'+
+      '<td>'+esc(DN[it.domain]||it.domain)+'</td>'+
+      '<td class="num">'+(+it.par||0)+'</td>'+
+      '<td class="num">'+(+it.reorderPoint||0)+'</td>'+
+      '<td class="num">'+TJ.money(it.unitCost)+'</td>'+
+      '<td class="num">'+(+it.avgPerCase||0)+'</td>'+
+      '<td>'+jic+'</td>'+
+      '<td>'+esc(vn)+'</td>'+
+      '<td><button class="btn ghost sm" data-edit-item="'+it.id+'">'+TJ.icon('file','ico-sm')+'Edit</button></td>'+
+    '</tr>';
+  }).join('');
+  return '<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:16px">'+
+      '<div class="muted" style="font-size:13.5px">Tune par levels, reorder points, unit cost and per-case averages.</div>'+
+      '<button class="btn primary" id="addItemBtn">'+TJ.icon('plus','ico-sm')+'Add item</button>'+
+    '</div>'+
+    '<div class="panel"><div class="tbl-wrap"><table>'+
+      '<thead><tr><th>Item</th><th>Domain</th><th class="num">Par</th><th class="num">Reorder</th><th class="num">Unit cost</th><th class="num">Avg/case</th><th>JIC?</th><th>Vendor</th><th></th></tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+    '</table></div></div>';
+}
+
+/* ---------------- MOHS KIT TAB ---------------- */
+function kitPane(){
+  var rows=MOHS_KIT.map(function(k){
+    var it=STORE.item(k.itemId);
+    var oh=it?INV.onHand(it):0;
+    return '<div class="lrow">'+
+      '<div class="ic">'+TJ.icon('scissors','ico-sm')+'</div>'+
+      '<div><div class="t">'+esc(it?it.name:k.name)+'</div>'+
+        '<div class="d">'+esc(it&&it.sub?it.sub:'')+'</div></div>'+
+      '<div class="cost" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">'+
+        '<b>× '+k.qty+'</b>'+
+        '<span class="tiny" style="font-weight:600">'+oh+' on hand</span>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  return '<div class="muted" style="font-size:13.5px;margin-bottom:16px">The standard kit deducted for every Mohs case.</div>'+
+    '<div class="panel">'+
+      '<div class="p-head">'+TJ.icon('layers','ico-sm')+'<strong>Standard Mohs case kit</strong></div>'+
+      rows+
+    '</div>'+
+    '<div class="note">'+TJ.icon('sparkles','ico-sm')+'<div>When a case is logged in the Usage Lab, this whole kit is deducted in one tap (FEFO) — staff never count items separately.</div></div>';
+}
+
+/* ---------------- RENDER ---------------- */
+function render(){
+  var TABS=[
+    {id:'vendors', label:'Vendors',       icon:'truck'},
+    {id:'items',   label:'Item settings', icon:'list'},
+    {id:'kit',     label:'Mohs kit',      icon:'layers'}
+  ];
+  var tabbar=TABS.map(function(t){
+    return '<button class="tab'+(tab===t.id?' on':'')+'" data-tab="'+t.id+'">'+TJ.icon(t.icon,'ico-sm')+t.label+'</button>';
+  }).join('');
+
+  var pane = tab==='vendors' ? vendorsPane() : tab==='items' ? itemsPane() : kitPane();
+
+  var html=
+    '<div class="page-head">'+
+      '<div class="eyebrow">Supply room</div>'+
+      '<h2>Vendors &amp; settings</h2>'+
+      '<p>Manage suppliers, tune par levels and reorder points, and review the standard Mohs case kit.</p>'+
+    '</div>'+
+    '<div class="tabbar">'+tabbar+'</div>'+
+    '<div>'+pane+'</div>';
+
+  var content=document.getElementById('content');
+  content.innerHTML=html;
+
+  // tabs
+  TJ.qsa('.tabbar .tab').forEach(function(b){
+    b.onclick=function(){ tab=b.getAttribute('data-tab'); render(); };
+  });
+
+  // vendors
+  var av=document.getElementById('addVendorBtn'); if(av) av.onclick=openAddVendor;
+  TJ.qsa('[data-edit-vendor]').forEach(function(b){ b.onclick=function(){ openEditVendor(b.getAttribute('data-edit-vendor')); }; });
+
+  // items
+  var ai=document.getElementById('addItemBtn'); if(ai) ai.onclick=openAddItem;
+  TJ.qsa('[data-edit-item]').forEach(function(b){ b.onclick=function(){ openEditItem(b.getAttribute('data-edit-item')); }; });
+}
+
+TJ.mount({active:'vendors', onReady:render});
+STORE.on(render);
+</script>
+</body>
+</html>

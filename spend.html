@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Supply spend · Dermatology &amp; Skin Cancer Center</title>
+<link rel="icon" href="assets/img/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="backdrop" onclick="TJ.toggleNav()"></div>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<script src="assets/js/store.js"></script>
+<script src="assets/js/inventory.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+TJ.mount({active:'spend', onReady:render});
+STORE.on(render);
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+function render(){
+  var spend = INV.spend();
+
+  /* ---- KPI strip ---- */
+  var kpis = [
+    {l:'Spent · last 8 wks', v:TJ.money(spend.total)},
+    {l:'Avg / week',          v:TJ.money(spend.avgPerWeek)},
+    {l:'On order / projected',v:TJ.money(spend.projected)},
+    {l:'Inventory value',     v:TJ.money(INV.totalValue())}
+  ].map(function(k){
+    return '<div class="panel"><div class="kpi"><div class="v">'+k.v+'</div><div class="l">'+k.l+'</div></div></div>';
+  }).join('');
+
+  /* ---- Weekly spend column chart (oldest left → now right) ---- */
+  var labels = ['8w','7w','6w','5w','4w','3w','2w','now'];
+  var weeks = spend.byWeek.slice().reverse();           // w7..w0  (oldest → newest)
+  var labRev = labels.slice();                          // already oldest→now
+  var maxW = Math.max.apply(null, weeks.concat([1]));
+  var cols = weeks.map(function(amt,i){
+    var pct = Math.max(4, Math.round((amt/maxW)*100));
+    return '<div class="col" style="height:'+pct+'%"><b>'+TJ.money(amt)+'</b><span>'+labRev[i]+'</span></div>';
+  }).join('');
+  var weekly =
+    '<div class="panel">'+
+      '<div class="p-head">'+TJ.icon('zap')+'<strong>Weekly spend</strong></div>'+
+      '<div class="pad" style="padding-top:26px;padding-bottom:26px">'+
+        '<div class="spark">'+cols+'</div>'+
+      '</div>'+
+    '</div>';
+
+  /* ---- Spend by domain (horizontal bars, descending) ---- */
+  var doms = Object.keys(spend.byDomain).map(function(d){ return {d:d, v:spend.byDomain[d]}; })
+    .sort(function(a,b){ return b.v-a.v; });
+  var maxD = Math.max.apply(null, doms.map(function(x){return x.v;}).concat([1]));
+  var bars = doms.map(function(x){
+    var pct = Math.max(2, Math.round((x.v/maxD)*100));
+    return '<div class="bar-h">'+
+      '<div class="lab">'+esc(x.d)+'</div>'+
+      '<div class="track"><div class="fill" style="width:'+pct+'%"></div></div>'+
+      '<div class="val">'+TJ.money(x.v)+'</div>'+
+    '</div>';
+  }).join('');
+  var byDomain =
+    '<div class="panel">'+
+      '<div class="p-head">'+TJ.icon('layers')+'<strong>Spend by domain</strong></div>'+
+      '<div class="pad-lg"><div class="bars-h">'+bars+'</div></div>'+
+    '</div>';
+
+  /* ---- Recent purchases table (newest first) ---- */
+  var ps = STORE.data().purchases.slice().sort(function(a,b){ return (a.daysAgo||0)-(b.daysAgo||0); });
+  var rows = ps.map(function(p){
+    var it = STORE.item(p.itemId);
+    var when = (p.daysAgo||0) <= 0 ? 'today' : p.daysAgo+'d ago';
+    return '<tr>'+
+      '<td class="it-name">'+esc(it?it.name:p.itemId)+'</td>'+
+      '<td>'+esc(p.domain)+'</td>'+
+      '<td class="num">'+(p.qty||0)+'</td>'+
+      '<td class="num">'+TJ.money(p.cost)+'</td>'+
+      '<td>'+when+'</td>'+
+    '</tr>';
+  }).join('');
+  var recent =
+    '<div class="panel">'+
+      '<div class="p-head">'+TJ.icon('list')+'<strong>Recent purchases</strong></div>'+
+      '<div class="tbl-wrap"><table>'+
+        '<thead><tr><th>Item</th><th>Domain</th><th class="num">Qty</th><th class="num">Cost</th><th>When</th></tr></thead>'+
+        '<tbody>'+rows+'</tbody>'+
+      '</table></div>'+
+    '</div>';
+
+  /* ---- explainer note ---- */
+  var note =
+    '<div class="note">'+TJ.icon('zap')+'<span>The system buys to par on a schedule, so you avoid emergency rush orders '+
+    '(often 20&ndash;40% pricier) and never tie up cash in overstock. Projected spend above is only what&rsquo;s actually '+
+    'below par right now.</span></div>';
+
+  document.getElementById('content').innerHTML =
+    '<div class="page-head">'+
+      '<div class="eyebrow">Owner view</div>'+
+      '<h2>Supply spend</h2>'+
+      '<p>Where the money goes &mdash; and what the system saves you.</p>'+
+    '</div>'+
+    '<div class="grid g4" style="margin-bottom:16px">'+kpis+'</div>'+
+    '<div class="grid g2 stretch" style="margin-bottom:16px">'+weekly+byDomain+'</div>'+
+    recent+
+    note;
+}
+</script>
+</body>
+</html>

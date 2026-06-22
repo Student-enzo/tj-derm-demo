@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Dashboard · Dermatology &amp; Skin Cancer Center</title>
+<title>Today &middot; Dermatology &amp; Skin Cancer Center</title>
 <link rel="icon" href="assets/img/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
@@ -16,27 +16,7 @@
   <div class="backdrop" onclick="TJ.toggleNav()"></div>
   <div class="main">
     <header class="topbar" id="topbar"></header>
-    <div class="content">
-
-      <div class="page-head">
-        <div class="eyebrow">Tuesday · 8:14 AM</div>
-        <h2>Good morning, Dr. Giuffrida</h2>
-        <p>Everything that needs you, on one screen.</p>
-      </div>
-
-      <!-- HERO: computed live -->
-      <div id="hero"></div>
-
-      <!-- 4-DOMAIN TRAFFIC-LIGHT TILES -->
-      <div class="grid g4" id="tiles" style="margin-top:16px"></div>
-
-      <!-- LN2 GAUGE -->
-      <div class="panel" style="margin-top:16px" id="ln2panel"></div>
-
-      <!-- FOOTER -->
-      <div class="note" id="note" style="margin-top:16px"></div>
-
-    </div>
+    <div class="content" id="content"></div>
   </div>
 </div>
 
@@ -58,55 +38,59 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){retur
 function approveReorder(id){
   var r=INV.reorderList().filter(function(x){return x.it.id===id;})[0];
   if(!r) return;
-  STORE.sendPO({itemId:id, qty:r.qty});
-  TJ.toast('PO sent — your team takes it from here');
+  STORE.purchase({itemId:id, qty:r.qty});
+  TJ.toast('Ordered — your team takes it from here');
 }
 
+/* ---------- HERO ---------- */
 function renderHero(){
   var reorders=INV.reorderList();
   var exp7=INV.expiringList(7);
   var ln2=INV.ln2(STORE.item('i-ln2'));
   var blockedPA=STORE.data().priorAuth.filter(function(p){return p.stage!=='Approved';});
 
+  // nothing critical → big calm green tile
   if(reorders.length===0 && exp7.length===0 && ln2.status!=='bad' && blockedPA.length===0){
     return '<div class="panel tile ok"><div class="bar"></div>'+
       '<div class="pad-lg" style="display:flex;gap:18px;align-items:center">'+
-        '<div class="ic" style="width:56px;height:56px;border-radius:14px">'+TJ.icon('check','ico-lg')+'</div>'+
-        '<div><div style="font-size:21px;font-weight:800;letter-spacing:-.3px">Everything\'s stocked. Nothing\'s blocking your day.</div>'+
+        '<div class="ic" style="width:56px;height:56px;border-radius:14px;flex:none">'+TJ.icon('check','ico-lg')+'</div>'+
+        '<div><div style="font-size:21px;font-weight:800;letter-spacing:-.3px">Everything’s stocked. Nothing’s blocking your day.</div>'+
         '<div class="muted" style="font-size:14px;margin-top:4px">Your team is on top of it.</div></div>'+
       '</div></div>';
   }
 
   var rows=[];
 
+  // 1) reorder items — single "Approve" action
   reorders.forEach(function(r){
     var it=r.it;
-    if(it.tank) return; // LN2 handled separately below
+    if(it.tank) return; // LN2 handled below
     var sev=(INV.onHand(it)<=it.reorderPoint)?'bad':'warn';
-    rows.push('<div class="lrow" style="border-left:4px solid var('+(sev==='bad'?'--bad':'--warn')+')">'+
+    rows.push('<div class="lrow" style="flex-wrap:wrap;border-left:4px solid var('+(sev==='bad'?'--bad':'--warn')+')">'+
       '<div class="ic" style="color:var('+(sev==='bad'?'--bad-ink':'--warn-ink')+')">'+TJ.icon('box')+'</div>'+
-      '<div><div class="t">'+esc(it.name)+' — only '+INV.onHand(it)+' left</div>'+
+      '<div style="min-width:0;flex:1 1 60%"><div class="t">'+esc(it.name)+' — only '+INV.onHand(it)+' left</div>'+
       '<div class="d">'+esc(r.vendor||'')+' · suggested '+r.qty+' '+esc(it.unit)+'</div></div>'+
-      '<button class="btn primary sm" style="margin-left:auto" onclick="approveReorder(\''+esc(it.id)+'\')">Approve reorder</button>'+
+      '<button class="btn primary sm" style="margin-left:auto;flex:none" onclick="approveReorder(\''+esc(it.id)+'\')">Approve</button>'+
       '</div>');
   });
 
+  // 2) LN2 if bad — no action, reorder placed
   if(ln2.status==='bad'){
-    rows.push('<div class="lrow" style="border-left:4px solid var(--bad)">'+
+    rows.push('<div class="lrow" style="flex-wrap:wrap;border-left:4px solid var(--bad)">'+
       '<div class="ic" style="color:var(--bad-ink)">'+TJ.icon('snow')+'</div>'+
-      '<div><div class="t">Liquid nitrogen at '+Math.round(ln2.estPct)+'% — reorder needed</div>'+
+      '<div style="min-width:0;flex:1 1 60%"><div class="t">Liquid nitrogen at '+Math.round(ln2.estPct)+'% — reorder placed</div>'+
       '<div class="d">Airgas · ~'+ln2.daysToEmpty+' days to empty</div></div>'+
-      '<span class="pill bad" style="margin-left:auto">'+TJ.icon('alert','ico-sm')+'Below threshold</span>'+
+      '<span class="tiny" style="margin-left:auto">your team is handling it</span>'+
       '</div>');
   }
 
+  // 3) blocked prior-auth — no action, front desk handling it
   blockedPA.forEach(function(p){
-    var sev=(p.stage==='Pending insurer')?'bad':'warn';
-    rows.push('<div class="lrow" style="border-left:4px solid var('+(sev==='bad'?'--bad':'--warn')+')">'+
-      '<div class="ic" style="color:var('+(sev==='bad'?'--bad-ink':'--warn-ink')+')">'+TJ.icon('shield')+'</div>'+
-      '<div><div class="t">Patient '+esc(p.pt)+'\'s '+esc(p.proc)+' is waiting on '+esc(p.ins)+'</div>'+
-      '<div class="d">Front desk is handling it · '+esc(p.stage)+'</div></div>'+
-      '<span class="pill '+sev+'" style="margin-left:auto">'+esc(p.stage)+'</span>'+
+    rows.push('<div class="lrow" style="flex-wrap:wrap;border-left:4px solid var(--warn)">'+
+      '<div class="ic" style="color:var(--warn-ink)">'+TJ.icon('shield')+'</div>'+
+      '<div style="min-width:0;flex:1 1 60%"><div class="t">Patient '+esc(p.pt)+'’s '+esc(p.proc)+' is waiting on '+esc(p.ins)+'</div>'+
+      '<div class="d">'+esc(p.stage)+'</div></div>'+
+      '<span class="tiny" style="margin-left:auto">front desk is handling it</span>'+
       '</div>');
   });
 
@@ -119,51 +103,58 @@ function renderHero(){
     '</div>';
 }
 
+/* ---------- 4 DOMAIN TILES ---------- */
 function renderTiles(){
   var roll=INV.domainRollup();
   return DOMAINS.map(function(d){
-    var r=roll[d.name]||{count:0,worst:'ok',value:0};
-    var label={ok:'Healthy',warn:'Watch',bad:'Reorder now'}[r.worst];
+    var r=roll[d.name]||{count:0,worst:'ok',value:0,low:0};
+    var line=r.low>0
+      ? '<span class="dot '+r.worst+'"></span>'+r.low+' to reorder'
+      : '<span class="dot ok"></span>Healthy';
     return '<div class="panel tile '+r.worst+'"><div class="bar"></div><div class="body">'+
       '<div class="ic">'+TJ.icon(d.icon)+'</div>'+
       '<div class="dn">'+esc(d.name)+'</div>'+
       '<div class="big">'+TJ.money(r.value)+'</div>'+
-      '<div class="st"><span class="dot '+r.worst+'"></span>'+r.count+' item'+(r.count===1?'':'s')+' · '+label+'</div>'+
+      '<div class="st">'+line+'</div>'+
     '</div></div>';
   }).join('');
 }
 
+/* ---------- LN2 GAUGE ---------- */
 function renderLn2(){
   var ln2=INV.ln2(STORE.item('i-ln2'));
-  var t=STORE.item('i-ln2').tank;
   var pct=Math.round(ln2.estPct);
-  return '<div class="p-head"><strong>Liquid nitrogen</strong>'+
-      '<span class="pill '+ln2.status+'" style="margin-left:auto">'+
-        TJ.icon(ln2.status==='ok'?'check':'alert','ico-sm')+
-        (ln2.status==='bad'?'Below reorder':ln2.status==='warn'?'Reorder soon':'Healthy')+'</span></div>'+
+  var label=(ln2.status==='bad'?'Below reorder':ln2.status==='warn'?'Reorder soon':'Healthy');
+  return '<div class="panel" style="margin-top:16px">'+
+    '<div class="p-head"><strong>Liquid nitrogen</strong></div>'+
     '<div class="pad" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">'+
       '<div class="gauge" style="--p:'+pct+'"><b>'+pct+'%</b></div>'+
       '<div>'+
-        '<div class="tiny">Estimated level</div>'+
-        '<div style="font-weight:800;font-size:16px;margin:2px 0 8px">≈'+ln2.daysToEmpty+' days to empty</div>'+
-        '<div class="tiny">Boil-off '+t.boiloffPerDay+'%/day · '+ln2.liters+' L · reorder at '+t.reorderPct+'%</div>'+
+        '<div style="font-weight:800;font-size:16px;margin-bottom:8px">≈'+ln2.daysToEmpty+' days to empty</div>'+
+        '<span class="pill '+ln2.status+'">'+TJ.icon(ln2.status==='ok'?'check':'alert','ico-sm')+label+'</span>'+
       '</div>'+
-    '</div>';
+    '</div>'+
+  '</div>';
 }
 
+/* ---------- FOOTER NOTE ---------- */
 function renderNote(){
-  var k=INV.kpis();
-  return TJ.icon('stetho')+
-    '<div>You never type. Your team scans, counts and orders — you just see what needs a decision. '+
-    'Behind this screen: '+k.items+' items, '+TJ.money(k.value)+' on hand. '+
-    '<a href="dashboard-ops.html">See the team\'s console '+TJ.icon('arrow','ico-sm')+'</a></div>';
+  return '<div class="note" style="margin-top:16px">'+TJ.icon('stetho')+
+    '<div>You never type. Your team scans, counts and orders — you just see what needs a decision.</div></div>';
 }
 
+/* ---------- RENDER ---------- */
 function render(){
-  document.getElementById('hero').innerHTML=renderHero();
-  document.getElementById('tiles').innerHTML=renderTiles();
-  document.getElementById('ln2panel').innerHTML=renderLn2();
-  document.getElementById('note').innerHTML=renderNote();
+  document.getElementById('content').innerHTML=
+    '<div class="page-head">'+
+      '<div class="eyebrow">Tuesday · 8:14 AM</div>'+
+      '<h2>Good morning, Dr. Giuffrida</h2>'+
+      '<p>Everything that needs you — nothing else.</p>'+
+    '</div>'+
+    renderHero()+
+    '<div class="grid g4" style="margin-top:16px">'+renderTiles()+'</div>'+
+    renderLn2()+
+    renderNote();
 }
 
 STORE.on(render);

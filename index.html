@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TJ DERM — Inventory &amp; Prior-Auth · Prototype</title>
+<meta name="description" content="Interactive prototype of TJ DERM: medical inventory that manages itself, plus insurance prior-authorization for a dermatology practice.">
+<link rel="icon" href="assets/img/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/app.css">
+<style>
+  .hub{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:54px 20px 70px}
+  .hub-bg{position:fixed;inset:0;z-index:-1;background:
+     radial-gradient(60% 50% at 50% 0%, color-mix(in srgb,var(--brand) 12%,transparent), transparent 70%), var(--bg)}
+  .hub .top{display:flex;gap:8px;align-items:center;margin-bottom:34px}
+  .hub .logo{width:48px;height:48px}
+  .hub .wm{font-family:var(--font-display);font-size:24px;font-weight:700;letter-spacing:.4px}
+  .hub h1{font-family:var(--font-display);font-size:clamp(30px,5vw,46px);font-weight:700;text-align:center;
+     letter-spacing:-.5px;margin:0;max-width:16ch;line-height:1.1}
+  .hub .lead{color:var(--ink-2);font-size:clamp(15px,2.2vw,18px);text-align:center;max-width:56ch;margin:16px 0 6px}
+  .hub .for{display:inline-flex;align-items:center;gap:7px;background:var(--accent-soft);color:var(--ink-2);
+     font-size:12.5px;font-weight:700;padding:6px 13px;border-radius:999px;margin-top:18px}
+  .hub .ctas{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:26px 0 12px}
+  .hub .swrap{display:flex;align-items:center;gap:10px;margin-top:18px;color:var(--ink-3);font-size:12.5px}
+  .wrap{width:100%;max-width:1080px;margin:0 auto}
+  .lbl{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-3);margin:46px 0 14px;display:flex;align-items:center;gap:8px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .c{display:flex;flex-direction:column;gap:10px;padding:20px;border-radius:var(--r-lg);background:var(--panel);
+     box-shadow:var(--ring-1),var(--shadow);transition:.18s var(--ease);cursor:pointer}
+  .c:hover{transform:translateY(-3px);box-shadow:var(--ring-1),0 14px 32px rgba(0,0,0,.12)}
+  .c .ci{width:42px;height:42px;border-radius:12px;background:var(--accent-soft);color:var(--brand);display:grid;place-items:center}
+  .c h3{margin:2px 0 0;font-size:16px;font-weight:800}
+  .c p{margin:0;color:var(--ink-2);font-size:13.5px;line-height:1.5}
+  .c .go{margin-top:auto;color:var(--brand);font-size:13px;font-weight:700;display:flex;align-items:center;gap:5px}
+  .c.alt{background:var(--panel-2)}
+  .foot{color:var(--ink-3);font-size:12.5px;text-align:center;margin-top:48px;line-height:1.6}
+  @media(max-width:760px){.cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="hub-bg"></div>
+<div class="hub">
+  <div class="top"><img class="logo" src="assets/img/logo.svg" alt=""><span class="wm">TJ&nbsp;DERM</span></div>
+  <h1 class="display">Inventory that manages itself.</h1>
+  <p class="lead">A medical inventory system for a dermatology practice — and an insurance prior-authorization tracker that never lets a case stall. Everything below is live: tap, scan, approve, switch the look.</p>
+  <div class="for" id="for"></div>
+  <div class="ctas">
+    <a class="btn primary" href="dashboard.html" id="cta1"></a>
+    <a class="btn ghost" href="receive-scan.html" id="cta2"></a>
+  </div>
+  <div class="swrap">
+    <span>Pick a look:</span>
+    <div class="sw clinical" title="Clinical" onclick="TJ.setTheme('clinical')"></div>
+    <div class="sw midnight" title="Midnight" onclick="TJ.setTheme('midnight')"></div>
+    <div class="sw warm" title="Warm" onclick="TJ.setTheme('warm')"></div>
+    <span class="tiny">switches every screen</span>
+  </div>
+
+  <div class="wrap">
+    <div class="lbl" id="l1"></div>
+    <div class="cards" id="core"></div>
+
+    <div class="lbl" id="l2"></div>
+    <p class="tiny" style="margin:-6px 0 14px;max-width:60ch">Same job, different designs — so Dr. Giuffrida can pick the approach that fits the team. Each one is a working demo.</p>
+    <div class="cards" id="alt"></div>
+
+    <div class="foot" id="foot"></div>
+  </div>
+</div>
+
+<script src="assets/js/app.js"></script>
+<script>
+document.documentElement.setAttribute('data-theme', TJ.state.theme);
+document.getElementById('for').innerHTML=TJ.icon('stetho','ico-sm')+'Prototype for Dr. T.J. Giuffrida · Coral Gables';
+document.getElementById('cta1').innerHTML=TJ.icon('dashboard','ico-sm')+'Open the dashboard';
+document.getElementById('cta2').innerHTML=TJ.icon('scan','ico-sm')+'Try the scan flow';
+document.getElementById('l1').innerHTML=TJ.icon('layers','ico-sm')+'The five core screens';
+document.getElementById('l2').innerHTML=TJ.icon('sparkles','ico-sm')+'Compare design concepts';
+document.getElementById('foot').innerHTML='Sample, de-identified data — no real patient information. Works on phone and desktop.<br>Design language adapted from the Atlantic Yacht Charter system, re-skinned for clinical use.';
+
+var CORE=[
+  ['dashboard','dashboard.html','Doctor dashboard',"His screen. Green/yellow/red across all four domains, one-tap reorder approvals, liquid-nitrogen gauge — no data entry."],
+  ['box','stock.html','Stock on hand','Search and filter every item across surgical, lab, liquid nitrogen and topicals. Table or card view.'],
+  ['scan','receive-scan.html','Receive','Scan a UDI barcode and the lot number and expiry fill themselves. Staff confirm the count.'],
+  ['bell','alerts.html','Alerts & reorder','Daily expiry digest plus auto-drafted purchase orders. Approve each, or auto-reorder at par.'],
+  ['shield','prior-auth.html','Prior authorization','Phase 2 — track every insurance auth from request to approval so nothing delays a procedure.']
+];
+var ALT=[
+  ['list','dashboard-ops.html','Dashboard · ops view','A dense, action-first alternative for an office manager — everything needing attention in one worklist.'],
+  ['keyboard','receive-grid.html','Receive · fast grid','No camera. A spreadsheet-style grid to key in several items in seconds.'],
+  ['sparkles','receive-guided.html','Receive · guided','A calm step-by-step wizard — identify, confirm, count, done — for occasional users.']
+];
+function card(a,alt){ return '<a class="c'+(alt?' alt':'')+'" href="'+a[1]+'"><div class="ci">'+TJ.icon(a[0])+'</div>'+
+  '<h3>'+a[2]+'</h3><p>'+a[3]+'</p><div class="go">Open '+TJ.icon('arrow','ico-sm')+'</div></a>'; }
+document.getElementById('core').innerHTML=CORE.map(function(a){return card(a,false);}).join('');
+document.getElementById('alt').innerHTML=ALT.map(function(a){return card(a,true);}).join('');
+</script>
+</body>
+</html>

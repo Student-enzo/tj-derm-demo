@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Receive · Guided · TJ DERM</title>
+<link rel="icon" href="assets/img/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="backdrop" onclick="TJ.toggleNav()"></div>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <div class="content">
+      <div class="page-head">
+        <div class="eyebrow">Receive · concept C</div>
+        <h2>Guided receiving</h2>
+        <p>One calm step at a time. For staff who only receive shipments now and then — no grid, no guessing, no way to skip a field.</p>
+      </div>
+
+      <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <span class="flag">3 ways to receive</span>
+        <div class="seg">
+          <button onclick="location.href='receive-scan.html'">Scan</button>
+          <button onclick="location.href='receive-grid.html'">Fast grid</button>
+          <button class="on">Guided</button>
+        </div>
+        <span class="tiny">← compare the alternative concepts</span>
+      </div>
+
+      <div class="panel" style="max-width:560px">
+        <div class="p-head">
+          <strong id="stepLabel"></strong>
+          <span class="tiny" id="stepCount" style="margin-left:auto"></span>
+        </div>
+        <div class="pad" style="padding-top:14px">
+          <div class="steps" style="margin-bottom:20px">
+            <i id="seg1"></i><i id="seg2"></i><i id="seg3"></i><i id="seg4"></i>
+          </div>
+
+          <!-- STEP 1 · Identify -->
+          <div id="step1">
+            <div class="tiny" style="margin-bottom:14px">How do you want to start this item?</div>
+            <button class="btn primary full" id="scanBtn" onclick="startScan()" style="margin-bottom:10px"></button>
+            <button class="btn ghost full" id="manualBtn" onclick="startManual()"></button>
+          </div>
+
+          <!-- STEP 2 · Confirm lot & expiry -->
+          <div id="step2" class="hide">
+            <div class="p-head" style="padding:0 0 12px;border:0;gap:8px">
+              <span class="tiny">Check these against the box label.</span>
+              <span class="pill ok hide" id="udi" style="margin-left:auto"></span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:13px">
+              <div class="field"><label>Product</label><input id="f_prod" placeholder="e.g. Lidocaine 1% · 20 mL vial"></div>
+              <div class="row" style="gap:11px">
+                <div class="field" style="flex:1"><label>Lot #</label><input id="f_lot" placeholder="e.g. LD-7741"></div>
+                <div class="field" style="flex:1"><label>Expiry</label><input id="f_exp" placeholder="YYYY-MM-DD"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 3 · Count & location -->
+          <div id="step3" class="hide">
+            <div class="tiny" style="margin-bottom:14px">How many arrived, and where will it live?</div>
+            <div style="display:flex;flex-direction:column;gap:13px">
+              <div class="field"><label>Quantity received</label><input id="f_qty" placeholder="e.g. 24" inputmode="numeric"></div>
+              <div class="field"><label>Storage location</label>
+                <select id="f_loc">
+                  <option>Surgical room cabinet</option>
+                  <option>Lab fridge</option>
+                  <option>LN2 dewar</option>
+                  <option>Topicals shelf</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 4 · Done -->
+          <div id="step4" class="hide" style="text-align:center;padding:8px 0">
+            <div id="okCircle" style="width:56px;height:56px;border-radius:50%;background:var(--ok-bg);color:var(--ok-ink);display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px"></div>
+            <div style="font-weight:800;font-size:18px;margin-bottom:4px">Added to stock</div>
+            <div class="tiny" style="margin-bottom:16px">FEFO lot recorded · nothing else to do.</div>
+            <div class="panel pad" id="summary" style="text-align:left;background:var(--panel-2)"></div>
+            <button class="btn primary full" onclick="reset()" id="againBtn" style="margin-top:16px"></button>
+          </div>
+
+          <!-- NAV -->
+          <div class="row" id="navRow" style="gap:11px;margin-top:20px">
+            <button class="btn ghost" id="backBtn" onclick="back()"></button>
+            <button class="btn primary" id="nextBtn" onclick="next()" style="margin-left:auto"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="note" id="note" style="max-width:560px"></div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/app.js"></script>
+<script>
+TJ.mount({active:'receive-guided', onReady:init});
+
+var step=1, scanned=false;
+var LABELS={1:'Identify',2:'Confirm lot & expiry',3:'Count & location',4:'Done'};
+
+function init(){
+  document.getElementById('scanBtn').innerHTML=TJ.icon('camera','ico-sm')+'Scan barcode';
+  document.getElementById('manualBtn').innerHTML=TJ.icon('keyboard','ico-sm')+'Enter manually';
+  document.getElementById('okCircle').innerHTML=TJ.icon('check');
+  document.getElementById('againBtn').innerHTML=TJ.icon('plus','ico-sm')+'Receive another';
+  document.getElementById('note').innerHTML=TJ.icon('sparkles')+'<div><strong>The low-pressure path.</strong> Staff who only receive a shipment now and then get one decision per screen and can’t skip a required field. The <em>Scan</em> and <em>Fast grid</em> concepts stay available for power users.</div>';
+  render();
+}
+
+function set(id,v){ document.getElementById(id).value=v; }
+function val(id){ return document.getElementById(id).value.trim(); }
+
+function startScan(){
+  scanned=true;
+  set('f_prod','Lidocaine 1% · 20 mL vial'); set('f_lot','LD-7741'); set('f_exp','2026-12-31');
+  var u=document.getElementById('udi'); u.classList.remove('hide'); u.innerHTML=TJ.icon('check','ico-sm')+'from UDI';
+  TJ.toast('Barcode read · lot + expiry pre-filled');
+  go(2);
+}
+function startManual(){ scanned=false; go(2); }
+
+function next(){
+  if(step===1) return;               // step 1 advances via its own buttons
+  if(step===2){
+    if(!val('f_prod')){ TJ.toast('Enter a product first', false); return; }
+    if(!val('f_lot')){ TJ.toast('Enter the lot number', false); return; }
+    if(!val('f_exp')){ TJ.toast('Enter the expiry date', false); return; }
+    go(3); return;
+  }
+  if(step===3){
+    if(!val('f_qty')){ TJ.toast('Enter the quantity received', false); return; }
+    confirmReceive();
+    go(4); return;
+  }
+}
+function back(){ if(step>1 && step<4) go(step-1); }
+
+function confirmReceive(){
+  var p=val('f_prod'), q=val('f_qty');
+  TJ.state.received.push({p:p,q:q,at:Date.now()}); TJ.save();
+  document.getElementById('summary').innerHTML=
+    sumRow('Product',p)+sumRow('Lot #',val('f_lot'))+sumRow('Expiry',val('f_exp'))+
+    sumRow('Quantity',q)+sumRow('Location',val('f_loc'));
+  TJ.toast(q+' × '+p+' added · FEFO lot recorded');
+}
+function sumRow(k,v){
+  return '<div style="display:flex;gap:10px;padding:4px 0;font-size:13px">'+
+    '<span class="tiny" style="width:84px;flex:none">'+k+'</span>'+
+    '<span style="font-weight:700">'+(v||'—')+'</span></div>';
+}
+
+function reset(){
+  scanned=false;
+  ['f_prod','f_lot','f_exp','f_qty'].forEach(function(id){ set(id,''); });
+  document.getElementById('f_loc').selectedIndex=0;
+  document.getElementById('udi').classList.add('hide');
+  go(1);
+}
+
+function go(n){ step=n; render(); }
+
+function render(){
+  for(var i=1;i<=4;i++) document.getElementById('step'+i).classList.toggle('hide', i!==step);
+  document.getElementById('stepLabel').textContent=LABELS[step];
+  document.getElementById('stepCount').textContent='Step '+step+' of 4';
+  for(var s=1;s<=4;s++){
+    var seg=document.getElementById('seg'+s);
+    seg.className=(s<step?'done':s===step?'cur':'');
+  }
+  // nav row: hidden entirely on step 1 (its buttons advance) and step 4 (success)
+  var navRow=document.getElementById('navRow');
+  navRow.classList.toggle('hide', step===1 || step===4);
+  document.getElementById('backBtn').classList.toggle('hide', step<=1);
+  var nb=document.getElementById('nextBtn');
+  nb.innerHTML=(step===3? TJ.icon('check','ico-sm')+'Confirm &amp; add to stock' : 'Next'+TJ.icon('arrow','ico-sm'));
+}
+</script>
+</body>
+</html>

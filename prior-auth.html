@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prior Authorization · TJ DERM</title>
+<link rel="icon" href="assets/img/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="backdrop" onclick="TJ.toggleNav()"></div>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <div class="content">
+      <div class="page-head">
+        <div class="eyebrow">Phase 2 · revenue protection</div>
+        <h2>Insurance prior-authorization</h2>
+        <p>Track every auth from request to approval, so a missing form never delays a Mohs case or excision.</p>
+      </div>
+
+      <div class="note" style="margin-top:0;margin-bottom:18px" id="intro"></div>
+
+      <div class="kanban" id="board"></div>
+
+      <div class="sec-title" id="packetTitle"></div>
+      <div class="panel pad" id="packet"></div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/app.js"></script>
+<script>
+TJ.mount({active:'auth', onReady:init});
+var COLS=[
+  {k:'Draft', items:[{id:'pa1',t:'Mohs surgery',p:'Pt. J.R. · CPT 17311',ins:'United HC',w:'today',s:[1,0,0,0]}]},
+  {k:'Submitted', items:[{id:'pa2',t:'Excision, malignant',p:'Pt. M.K. · CPT 11606',ins:'Aetna',w:'2 days',s:[2,1,0,0]}]},
+  {k:'Pending insurer', items:[{id:'pa3',t:'Phototherapy series',p:'Pt. D.S. · CPT 96910',ins:'Cigna',w:'4 days · follow up',s:[2,2,1,0]}]},
+  {k:'Approved', items:[
+     {id:'pa4',t:'Biopsy, lesion',p:'Pt. A.L. · CPT 11102',ins:'Florida Blue ✓',w:'valid 90d',s:[2,2,2,2],ok:1},
+     {id:'pa5',t:'Excision, benign',p:'Pt. R.P. · CPT 11402',ins:'Medicare ✓',w:'valid 60d',s:[2,2,2,2],ok:1}]}
+];
+function steps(arr){ return '<div class="steps">'+arr.map(function(v){ return '<i class="'+(v===2?'done':v===1?'cur':'')+'"></i>'; }).join('')+'</div>'; }
+function init(){
+  document.getElementById('intro').innerHTML=TJ.icon('stetho')+'<div><strong>The pain it kills:</strong> cases stall when an auth is missing. This board shows what’s waiting on the insurer vs. on the office — de-identified, HIPAA-safe. Tap a card to open its packet.</div>';
+  document.getElementById('packetTitle').innerHTML=TJ.icon('file','ico-sm')+'Auto-assembled auth packet';
+  document.getElementById('board').innerHTML=COLS.map(function(c){
+    return '<div class="kcol"><h4>'+c.k+'<span class="n">'+c.items.length+'</span></h4>'+
+      c.items.map(function(it){
+        return '<div class="card-pa" onclick="openPacket(\''+it.id+'\')"><div class="pt">'+it.t+'</div>'+
+          '<div class="pp">'+it.p+'</div><div class="pf"><span class="ins" style="'+(it.ok?'color:var(--ok-ink)':'')+'">'+it.ins+'</span>'+
+          '<span class="tiny">'+it.w+'</span></div>'+steps(it.s)+'</div>'; }).join('')+'</div>'; }).join('');
+  openPacket('pa1');
+}
+function openPacket(id){
+  var it; COLS.forEach(function(c){ c.items.forEach(function(x){ if(x.id===id) it=x; }); });
+  if(!it) return;
+  var doc=[
+    {ok:1,t:'Path report attached'},{ok:1,t:'Clinical photos attached'},
+    {ok:1,t:'ICD-10 mapped (C44.319)'},{ok:0,t:'Medical-necessity letter — needs sign-off'}
+  ];
+  document.getElementById('packet').innerHTML=
+    '<div style="display:flex;gap:26px;flex-wrap:wrap">'+
+      '<div style="flex:1;min-width:240px">'+
+        '<div style="font-weight:800;margin-bottom:3px">'+it.t+' · '+it.p.split(' · ')[0]+'</div>'+
+        '<div class="tiny" style="margin-bottom:14px">'+it.ins.replace(' ✓','')+' · '+it.p.split(' · ')[1]+' · Dr. Giuffrida</div>'+
+        doc.map(function(d){ return '<div style="display:flex;gap:9px;align-items:center;margin-bottom:10px">'+
+          '<span class="dot '+(d.ok?'ok':'warn')+'"></span><span style="font-size:13.5px">'+d.t+'</span></div>'; }).join('')+
+      '</div>'+
+      '<div style="flex:1;min-width:240px;border-left:1px solid var(--line);padding-left:24px">'+
+        '<div class="tiny" style="margin-bottom:12px">Status timeline</div>'+
+        tl('ok','Created from procedure note','auto · today 8:14a')+
+        tl('warn','Awaiting doctor sign-off','1 item left')+
+        tl('idle','Submit to '+it.ins.replace(' ✓','').trim(),'portal + fax fallback')+
+        '<button class="btn primary full" style="margin-top:16px" onclick="TJ.toast(\'Auth signed &amp; submitted · sample\')">'+TJ.icon('check','ico-sm')+'Sign &amp; submit auth</button>'+
+      '</div>'+
+    '</div>';
+}
+function tl(sev,t,d){ return '<div style="display:flex;gap:10px;margin-bottom:13px"><span class="dot '+sev+'" style="margin-top:5px"></span>'+
+  '<div><strong style="font-size:13px'+(sev==='idle'?';color:var(--ink-3)':'')+'">'+t+'</strong><div class="tiny">'+d+'</div></div></div>'; }
+</script>
+</body>
+</html>

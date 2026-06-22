@@ -1,0 +1,15 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TJ DERM logo">
+  <defs>
+    <linearGradient id="tjg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#13a3a3"/><stop offset="1" stop-color="#0b6f70"/>
+    </linearGradient>
+  </defs>
+  <rect width="40" height="40" rx="11" fill="url(#tjg)"/>
+  <!-- stylized skin layers (derm motif) -->
+  <path d="M9 14.5c4-2.4 7.5-2.4 11 0s6.4 2.4 11 0" stroke="#fff" stroke-width="2.1" stroke-linecap="round" opacity="0.55"/>
+  <path d="M9 20.4c4-2.4 7.5-2.4 11 0s6.4 2.4 11 0" stroke="#fff" stroke-width="2.1" stroke-linecap="round" opacity="0.8"/>
+  <path d="M9 26.3c4-2.4 7.5-2.4 11 0s6.4 2.4 11 0" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/>
+  <!-- care plus -->
+  <circle cx="29.5" cy="11" r="5.4" fill="#fff"/>
+  <path d="M29.5 8.4v5.2M26.9 11h5.2" stroke="#0b6f70" stroke-width="1.8" stroke-linecap="round"/>
+</svg>

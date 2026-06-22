@@ -1,0 +1,71 @@
+/* ============================================================
+   TJ DERM — Design Tokens
+   Grounded in the Atlantic Yacht Charter design system
+   (rounded-xl cards w/ subtle ring, dark gradient sidebar,
+   Inter UI + Playfair display, p-4/p-8 rhythm, mobile-safe),
+   re-skinned for a clinical dermatology / medical context:
+   teal + health-green, WCAG-AA contrast, no neon.
+   Three switchable visual themes: clinical · midnight · warm.
+   ============================================================ */
+
+:root{
+  --r-sm:9px; --r:13px; --r-lg:18px; --r-pill:999px;
+  --font-ui:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --font-display:'Playfair Display',Georgia,'Times New Roman',serif;
+  --maxw:1180px;
+  --ease:cubic-bezier(.4,0,.2,1);
+  /* status (shared across themes, tuned per theme below) */
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-6:24px; --space-8:32px;
+}
+
+/* ---------- CLINICAL (default · light teal) ---------- */
+[data-theme="clinical"]{
+  --bg:#eef3f5; --panel:#ffffff; --panel-2:#f3f7f8; --panel-3:#eaf1f2;
+  --line:#dce6e9; --line-2:#e8eef0;
+  --ink:#0d2a31; --ink-2:#4a6168; --ink-3:#7d949a;
+  --brand:#0e8a8a; --brand-2:#0b6f70; --brand-ink:#ffffff;
+  --accent:#0e8a8a; --accent-soft:#e2f1f1;
+  --ring:rgba(14,138,138,.35);
+  --ok:#138a5a; --ok-bg:#e4f4ec; --ok-ink:#0c6b46;
+  --warn:#b9770b; --warn-bg:#fbf0d9; --warn-ink:#8a5905;
+  --bad:#cf3b34; --bad-bg:#fbe6e4; --bad-ink:#a02a25;
+  --sidebar:linear-gradient(180deg,#0e2f37 0%,#0a262d 100%);
+  --sidebar-ink:rgba(255,255,255,.6); --sidebar-ink-2:rgba(255,255,255,.32);
+  --sidebar-active-bg:rgba(96,210,206,.16); --sidebar-active:#6fdcd6; --sidebar-active-bar:#6fdcd6;
+  --shadow:0 1px 2px rgba(13,42,49,.05); --ring-1:inset 0 0 0 1px rgba(13,42,49,.08);
+  --scan:#19c39a;
+}
+/* ---------- MIDNIGHT (dark command center) ---------- */
+[data-theme="midnight"]{
+  --bg:#0a1216; --panel:#111e24; --panel-2:#0e1a1f; --panel-3:#16262d;
+  --line:#21363f; --line-2:#1b2d34;
+  --ink:#e9f3f4; --ink-2:#9fb6bd; --ink-3:#6e8a92;
+  --brand:#2cc6c6; --brand-2:#1ea3a3; --brand-ink:#04181a;
+  --accent:#e0b64b; --accent-soft:#23303a;
+  --ring:rgba(44,198,198,.4);
+  --ok:#34d399; --ok-bg:#0f2a22; --ok-ink:#5ee0ab;
+  --warn:#e0b64b; --warn-bg:#2c2410; --warn-ink:#edcf7e;
+  --bad:#ff6a5e; --bad-bg:#2e1513; --bad-ink:#ff938a;
+  --sidebar:linear-gradient(180deg,#0c171c 0%,#081014 100%);
+  --sidebar-ink:rgba(255,255,255,.55); --sidebar-ink-2:rgba(255,255,255,.28);
+  --sidebar-active-bg:rgba(44,198,198,.15); --sidebar-active:#5fe0e0; --sidebar-active-bar:#2cc6c6;
+  --shadow:0 1px 2px rgba(0,0,0,.4); --ring-1:inset 0 0 0 1px rgba(255,255,255,.07);
+  --scan:#34d399;
+}
+/* ---------- WARM (calm sage + cream) ---------- */
+[data-theme="warm"]{
+  --bg:#f3efe7; --panel:#fffdf8; --panel-2:#f5f0e6; --panel-3:#ede6d8;
+  --line:#e4dac8; --line-2:#ece4d6;
+  --ink:#34302a; --ink-2:#6f655a; --ink-3:#9c9084;
+  --brand:#4f7d6e; --brand-2:#3c6354; --brand-ink:#ffffff;
+  --accent:#bf7a36; --accent-soft:#f2e6d4;
+  --ring:rgba(79,125,110,.35);
+  --ok:#4a7d52; --ok-bg:#e7f0e1; --ok-ink:#356139;
+  --warn:#bf7a36; --warn-bg:#f6e8d3; --warn-ink:#8c5821;
+  --bad:#bb4a3a; --bad-bg:#f5e2dc; --bad-ink:#94372a;
+  --sidebar:linear-gradient(180deg,#33302a 0%,#2a2722 100%);
+  --sidebar-ink:rgba(255,255,255,.6); --sidebar-ink-2:rgba(255,255,255,.3);
+  --sidebar-active-bg:rgba(176,200,170,.16); --sidebar-active:#cfe0c0; --sidebar-active-bar:#a9c79a;
+  --shadow:0 1px 2px rgba(52,48,42,.06); --ring-1:inset 0 0 0 1px rgba(52,48,42,.09);
+  --scan:#6aa15f;
+}

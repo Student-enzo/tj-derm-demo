@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Receive · Scan · TJ DERM</title>
+<link rel="icon" href="assets/img/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="backdrop" onclick="TJ.toggleNav()"></div>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <div class="content">
+      <div class="page-head">
+        <div class="eyebrow">Receive · concept A</div>
+        <h2>Scan-first receiving</h2>
+        <p>Point the phone at the box. The lot number and expiry fill themselves — staff just confirms the count.</p>
+      </div>
+
+      <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <span class="flag">3 ways to receive</span>
+        <div class="seg">
+          <button class="on">Scan</button>
+          <button onclick="location.href='receive-grid.html'">Fast grid</button>
+          <button onclick="location.href='receive-guided.html'">Guided</button>
+        </div>
+        <span class="tiny">← compare the alternative concepts</span>
+      </div>
+
+      <div class="row" style="align-items:flex-start">
+        <!-- PHONE -->
+        <div class="phone">
+          <div class="scr">
+            <div class="view">
+              <div class="frame"><div class="laser"></div></div>
+              <div class="hint">Align the UDI barcode in the frame</div>
+            </div>
+            <div class="pad" style="text-align:center;border-top:1px solid var(--line)">
+              <div class="bcode" id="bc" style="margin-bottom:12px"></div>
+              <button class="btn primary full" onclick="scan()" id="scanBtn"></button>
+              <div class="tiny" style="margin-top:8px">GS1 &amp; HIBCC UDI supported</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RESULT -->
+        <div class="panel" style="flex:1;min-width:300px">
+          <div class="p-head"><strong id="rh">Scanned result</strong><span class="pill ok hide" id="auto" style="margin-left:auto"></span></div>
+          <div class="pad" style="display:flex;flex-direction:column;gap:13px">
+            <div class="field"><label>Product <span class="auto hide" id="aP"></span></label><input id="f_prod" placeholder="—"></div>
+            <div class="row" style="gap:11px">
+              <div class="field" style="flex:1"><label>Lot # <span class="auto hide" id="aL"></span></label><input id="f_lot" placeholder="—"></div>
+              <div class="field" style="flex:1"><label>Expiry <span class="auto hide" id="aE"></span></label><input id="f_exp" placeholder="—"></div>
+            </div>
+            <div class="row" style="gap:11px">
+              <div class="field" style="flex:1"><label>Quantity received</label><input id="f_qty" placeholder="e.g. 24" inputmode="numeric"></div>
+              <div class="field" style="flex:1"><label>Domain</label>
+                <select id="f_dom"><option>Surgical</option><option>Lab Reagent</option><option>Liquid Nitrogen</option><option>Topical</option></select></div>
+            </div>
+            <button class="btn primary full" onclick="confirmIt()" style="margin-top:4px">Confirm &amp; add to stock</button>
+            <div class="tiny" style="text-align:center">Scanning never auto-writes — staff confirms the count first.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="note" id="note"></div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/app.js"></script>
+<script>
+TJ.mount({active:'receive', onReady:init});
+function init(){
+  var bc=document.getElementById('bc');
+  for(var i=0;i<36;i++){ var b=document.createElement('i'); b.style.height=(14+Math.round((Math.sin(i*1.7)*0.5+0.5)*30))+'px'; bc.appendChild(b); }
+  document.getElementById('scanBtn').innerHTML=TJ.icon('camera','ico-sm')+'Scan barcode';
+  document.getElementById('note').innerHTML=TJ.icon('scan')+'<div><strong>The core friction-killer.</strong> A GS1/HIBCC barcode carries the product, lot and expiry — so they appear without typing. If a code won’t read, the <em>Fast grid</em> concept lets staff key it in seconds.</div>';
+}
+function scan(){
+  set('f_prod','Lidocaine 1% · 20 mL vial'); set('f_lot','LD-7741'); set('f_exp','2026-12-31'); set('f_qty','24');
+  document.getElementById('f_dom').value='Surgical';
+  ['aP','aL','aE','auto'].forEach(function(id){ var e=document.getElementById(id); e.classList.remove('hide'); e.innerHTML=TJ.icon('check','ico-sm')+'from UDI'; });
+  document.getElementById('auto').innerHTML=TJ.icon('check','ico-sm')+'auto-filled from barcode';
+  ['f_prod','f_lot','f_exp'].forEach(function(id){ var e=document.getElementById(id); e.classList.remove('flash'); void e.offsetWidth; e.classList.add('flash'); });
+  TJ.toast('Barcode read · lot + expiry pre-filled');
+}
+function confirmIt(){
+  var p=document.getElementById('f_prod').value, q=document.getElementById('f_qty').value;
+  if(!p){ TJ.toast('Scan or type a product first', false); return; }
+  TJ.state.received.push({p:p,q:q,at:Date.now()}); TJ.save();
+  TJ.toast((q||'')+' × '+p+' added · FEFO lot recorded');
+}
+function set(id,v){ document.getElementById(id).value=v; }
+</script>
+</body>
+</html>

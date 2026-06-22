@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stock · TJ DERM</title>
+<link rel="icon" href="assets/img/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="backdrop" onclick="TJ.toggleNav()"></div>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <div class="content">
+      <div class="page-head">
+        <div class="eyebrow">Live inventory</div>
+        <h2>Stock on hand</h2>
+        <p>Every domain in one place. Status updates as stock is received, used, or expires.</p>
+      </div>
+
+      <div class="row" style="align-items:center;margin-bottom:14px;gap:12px">
+        <div style="position:relative;flex:1;min-width:200px">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-3)" id="si"></span>
+          <input class="input" id="q" placeholder="Search items, lots, vendors…" style="padding-left:40px" oninput="render()">
+        </div>
+        <div class="seg"><button class="on" id="vTable" onclick="setView('table')">Table</button><button id="vCard" onclick="setView('cards')">Cards</button></div>
+      </div>
+
+      <div class="chips" id="chips"></div>
+
+      <div class="panel" id="tableWrap">
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Item</th><th>Domain</th><th>On hand</th><th>Par</th><th>Status</th><th>Next expiry</th><th>Lot · FEFO</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+      </div>
+      <div class="grid g3 hide" id="cardWrap" style="margin-top:0"></div>
+
+      <div class="note" id="note"></div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/app.js"></script>
+<script>
+TJ.mount({active:'stock', onReady:init});
+
+var DN={Surgical:'Surgical',Lab:'Lab Reagents',LN2:'Liquid Nitrogen',Topical:'Topicals'};
+var DICON={Surgical:'scissors',Lab:'flask',LN2:'snow',Topical:'droplet'};
+var STOCK=[
+  ['4-0 Nylon suture','Box of 12','Surgical',9,4,'ok','—','—'],
+  ['Lidocaine 1% 20mL','Local anesthetic','Surgical',6,10,'bad','in 5 days','LD-7741'],
+  ['Curettes (sterile)','Single-use','Surgical',14,8,'warn','in 6 days','CR-2231'],
+  ['Surgical gauze 4×4','Sterile pack','Surgical',88,30,'ok','—','GZ-1180'],
+  ['Formalin 10%','1 gal · fixative','Lab',3,5,'warn','in 21 days','FM-0455'],
+  ['H&E stain kit','Histology reagent','Lab',2,3,'warn','in 60 days','HE-3390'],
+  ['Liquid nitrogen','Bulk dewar','LN2',38,50,'bad','est. 9 days','—'],
+  ['Aluminum chloride 20%','Hemostatic','Topical',11,8,'warn','in 24 days','AC-0912'],
+  ['Clobetasol 0.05%','Topical steroid','Topical',24,12,'ok','in 8 mo','CB-5521'],
+  ['Mupirocin 2%','Topical antibiotic','Topical',19,10,'ok','in 11 mo','MU-2204']
+];
+var dom='all', view='table';
+
+function init(){
+  document.getElementById('si').innerHTML=TJ.icon('search','ico-sm');
+  document.getElementById('note').innerHTML=TJ.icon('layers')+'<div><strong>One source of truth.</strong> Surgical, lab, liquid nitrogen and topicals each carry their own fields, but staff search and filter them from a single list. Try the search box or a domain chip.</div>';
+  var chips='<div class="chip on" onclick="setDom(\'all\',this)">All domains</div>';
+  ['Surgical','Lab','LN2','Topical'].forEach(function(k){ chips+='<div class="chip" onclick="setDom(\''+k+'\',this)">'+TJ.icon(DICON[k],'ico-sm')+DN[k]+'</div>'; });
+  document.getElementById('chips').innerHTML=chips;
+  render();
+}
+function setDom(d,el){ dom=d; TJ.qsa('.chip').forEach(function(c){c.classList.remove('on');}); el.classList.add('on'); render(); }
+function setView(v){ view=v;
+  document.getElementById('vTable').classList.toggle('on',v==='table');
+  document.getElementById('vCard').classList.toggle('on',v==='cards');
+  document.getElementById('tableWrap').classList.toggle('hide',v!=='table');
+  document.getElementById('cardWrap').classList.toggle('hide',v!=='cards');
+  render();
+}
+function data(){ var q=(document.getElementById('q').value||'').toLowerCase();
+  return STOCK.filter(function(r){ return (dom==='all'||r[2]===dom) && (r[0]+r[1]+r[7]).toLowerCase().indexOf(q)>-1; }); }
+function pill(s){ return s==='ok'?'<span class="pill ok">'+TJ.icon('check','ico-sm')+'OK</span>'
+  : s==='warn'?'<span class="pill warn">'+TJ.icon('alert','ico-sm')+'Low / expiring</span>'
+  : '<span class="pill bad">'+TJ.icon('alert','ico-sm')+'Reorder</span>'; }
+function render(){
+  var rows=data(), u;
+  if(view==='table'){
+    document.getElementById('rows').innerHTML=rows.map(function(r){ u=r[2]==='LN2'?'%':'';
+      return '<tr><td><div class="it-name">'+r[0]+'</div><div class="it-sub">'+r[1]+'</div></td>'+
+        '<td>'+DN[r[2]]+'</td><td><strong>'+r[3]+u+'</strong></td>'+
+        '<td class="muted">'+r[4]+u+'</td><td>'+pill(r[5])+'</td><td>'+r[6]+'</td><td class="muted">'+r[7]+'</td></tr>'; }).join('')
+      || '<tr><td colspan="7" class="muted" style="text-align:center;padding:28px">No items match.</td></tr>';
+  } else {
+    document.getElementById('cardWrap').innerHTML=rows.map(function(r){ u=r[2]==='LN2'?'%':'';
+      return '<div class="panel pad"><div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">'+
+        '<div class="lrow-ic" style="width:36px;height:36px;border-radius:10px;background:var(--panel-3);display:grid;place-items:center;color:var(--ink-2)">'+TJ.icon(DICON[r[2]])+'</div>'+
+        '<div><div class="it-name">'+r[0]+'</div><div class="it-sub">'+DN[r[2]]+'</div></div>'+
+        '<div style="margin-left:auto">'+pill(r[5])+'</div></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:13px"><span class="muted">On hand</span><strong>'+r[3]+u+' / '+r[4]+u+' par</strong></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:4px"><span class="muted">Next expiry</span><span>'+r[6]+'</span></div></div>'; }).join('')
+      || '<div class="muted">No items match.</div>';
+  }
+}
+</script>
+</body>
+</html>

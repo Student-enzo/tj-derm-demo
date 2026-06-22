@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dashboard · operations view · TJ DERM</title>
+<link rel="icon" href="assets/img/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="backdrop" onclick="TJ.toggleNav()"></div>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <div class="content">
+
+      <div class="page-head">
+        <div class="eyebrow">Operations view</div>
+        <h2>Everything needing a hand, in one list</h2>
+        <p>The dense, action-first view for the front desk. One worklist across every domain — low stock, expiries, draft POs and LN2 — each row cleared with a single tap.</p>
+      </div>
+
+      <!-- KPI STRIP -->
+      <div class="grid g4">
+        <div class="panel pad" style="display:flex;align-items:center;gap:12px">
+          <div class="ic" id="k1" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--warn-bg);color:var(--warn-ink);flex:none"></div>
+          <div><div class="big" style="font-size:22px;font-weight:800;letter-spacing:-.4px" id="kReorderN">3</div><div class="tiny">reorders pending</div></div>
+        </div>
+        <div class="panel pad" style="display:flex;align-items:center;gap:12px">
+          <div class="ic" id="k2" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--bad-bg);color:var(--bad-ink);flex:none"></div>
+          <div><div class="big" style="font-size:22px;font-weight:800;letter-spacing:-.4px" id="kExpN">5</div><div class="tiny">items expiring ≤30d</div></div>
+        </div>
+        <div class="panel pad" style="display:flex;align-items:center;gap:12px">
+          <div class="ic" id="k3" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--bad-bg);color:var(--bad-ink);flex:none"></div>
+          <div><div class="big" style="font-size:22px;font-weight:800;letter-spacing:-.4px">LN2 38%</div><div class="tiny">~9 days left</div></div>
+        </div>
+        <div class="panel pad" style="display:flex;align-items:center;gap:12px">
+          <div class="ic" id="k4" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--warn-bg);color:var(--warn-ink);flex:none"></div>
+          <div><div class="big" style="font-size:22px;font-weight:800;letter-spacing:-.4px">2</div><div class="tiny">low-stock domains</div></div>
+        </div>
+      </div>
+
+      <!-- ACTION WORKLIST -->
+      <div class="panel" style="margin-top:16px">
+        <div class="p-head"><strong>Action worklist</strong><span class="pill warn" id="openCount" style="margin-left:auto"></span></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Item</th><th>Issue</th><th>Domain</th><th>Detail</th><th style="text-align:right">Action</th></tr></thead>
+            <tbody id="wlBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="note" id="note"></div>
+
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/app.js"></script>
+<script>
+TJ.mount({active:'dashboard-ops', onReady:init});
+
+// Canonical sample data — same source as the doctor dashboard, surfaced as one worklist.
+var WORK=[
+  {id:'w-lido', item:'Lidocaine 1% 20mL', sub:'lot LD-7741', issue:'Low stock', sev:'bad',  domain:'Surgical', detail:'6 left · below par · Henry Schein', act:'Draft PO', done:'PO drafted · Henry Schein'},
+  {id:'w-cur',  item:'Curettes (sterile)', sub:'lot CR-2231', issue:'Expiring',  sev:'bad',  domain:'Surgical', detail:'expires in 6 days', act:'Pull lot', done:'Lot flagged for pull'},
+  {id:'w-ln2',  item:'Liquid nitrogen',    sub:'cryo tank',   issue:'LN2 low',   sev:'bad',  domain:'LN2',      detail:'38% · ~9 days left · Airgas', act:'Order refill', done:'Refill ordered · Airgas'},
+  {id:'w-form', item:'Formalin 10%',        sub:'lot FM-0455', issue:'Expiring',  sev:'warn', domain:'Lab',      detail:'expires in 21 days', act:'Draft PO', done:'PO drafted · McKesson'},
+  {id:'w-he',   item:'H&E stain kit',       sub:'reagent set', issue:'Low stock', sev:'warn', domain:'Lab',      detail:'1 kit left · below par · McKesson', act:'Draft PO', done:'PO drafted · McKesson'},
+  {id:'w-alcl', item:'Aluminum chloride 20%',sub:'lot AC-0912',issue:'Expiring',  sev:'warn', domain:'Topical',  detail:'expires in 24 days', act:'Pull lot', done:'Lot flagged for pull'}
+];
+
+function init(){
+  document.getElementById('k1').innerHTML=TJ.icon('truck');
+  document.getElementById('k2').innerHTML=TJ.icon('clock');
+  document.getElementById('k3').innerHTML=TJ.icon('snow');
+  document.getElementById('k4').innerHTML=TJ.icon('box');
+  document.getElementById('note').innerHTML=TJ.icon('list')+'<div><strong>The dense alternative.</strong> Same data as the doctor’s glance dashboard — but flattened into one worklist so the front desk can clear everything in a single pass. The doctor sees colour and taps Approve; the office manager works the queue here.</div>';
+  renderWork();
+}
+
+function renderWork(){
+  var body=document.getElementById('wlBody'), open=0, html='';
+  WORK.forEach(function(r){
+    var done=TJ.state.ops && TJ.state.ops[r.id]==='done';
+    if(!done) open++;
+    html+='<tr'+(done?' class="done" style="opacity:.5"':'')+' data-id="'+r.id+'">'+
+      '<td><div class="it-name">'+r.item+'</div><div class="it-sub">'+r.sub+'</div></td>'+
+      '<td><span class="pill '+r.sev+'">'+r.issue+'</span></td>'+
+      '<td class="muted">'+r.domain+'</td>'+
+      '<td class="muted" style="font-size:12.5px">'+r.detail+'</td>'+
+      '<td style="text-align:right">'+
+        (done
+          ? '<span class="pill ok">'+TJ.icon('check','ico-sm')+'Handled</span>'
+          : '<button class="btn primary sm" onclick="handle(\''+r.id+'\')">'+r.act+'</button>')+
+      '</td></tr>';
+  });
+  body.innerHTML=html;
+  document.getElementById('openCount').innerHTML=open?open+' open':'all clear';
+  document.getElementById('openCount').className='pill '+(open?'warn':'ok');
+  document.getElementById('openCount').style.marginLeft='auto';
+}
+
+function handle(id){
+  if(!TJ.state.ops) TJ.state.ops={};
+  TJ.state.ops[id]='done'; TJ.save();
+  var r=WORK.filter(function(x){return x.id===id;})[0];
+  renderWork();
+  TJ.toast((r?r.done:'Handled')+' · logged to audit trail');
+}
+</script>
+</body>
+</html>

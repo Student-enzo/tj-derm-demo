@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Receive · Fast grid · TJ DERM</title>
+<link rel="icon" href="assets/img/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="backdrop" onclick="TJ.toggleNav()"></div>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <div class="content">
+      <div class="page-head">
+        <div class="eyebrow">Receive · concept B</div>
+        <h2>Fast manual grid</h2>
+        <p>A keyboard-first spreadsheet for staff who'd rather type. Tab across the row, key the count, receive the whole delivery at once.</p>
+      </div>
+
+      <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <span class="flag">3 ways to receive</span>
+        <div class="seg">
+          <button onclick="location.href='receive-scan.html'">Scan</button>
+          <button class="on">Fast grid</button>
+          <button onclick="location.href='receive-guided.html'">Guided</button>
+        </div>
+        <span class="tiny">← compare the alternative concepts</span>
+      </div>
+
+      <div class="panel">
+        <div class="p-head">
+          <strong>Delivery entry</strong>
+          <span class="tiny" id="total" style="margin-left:auto"></span>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Product</th><th>Domain</th><th>Lot #</th><th>Expiry</th><th>Qty</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <div class="pad" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line)">
+          <button class="btn ghost sm" id="addBtn" onclick="addRow()"></button>
+          <button class="btn primary full" id="recvBtn" onclick="receiveAll()" style="flex:1;min-width:200px"></button>
+        </div>
+      </div>
+
+      <div class="note" id="note"></div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/app.js"></script>
+<script>
+TJ.mount({active:'receive-grid', onReady:init});
+
+var DOMS=['Surgical','Lab Reagent','Liquid Nitrogen','Topical'];
+var SEED=[
+  ['Lidocaine 1% · 20 mL vial','Surgical','LD-7741','2026-12-31','24'],
+  ['Formalin 10% · 1 gal','Lab Reagent','FM-0455','2027-03-15','5'],
+  ['Curettes (sterile)','Surgical','CR-2231','2027-06-30','40']
+];
+
+function init(){
+  SEED.forEach(function(r){ addRow(r); });
+  document.getElementById('addBtn').innerHTML=TJ.icon('plus','ico-sm')+'Add row';
+  document.getElementById('recvBtn').innerHTML=TJ.icon('check','ico-sm')+'Receive all';
+  document.getElementById('note').innerHTML=TJ.icon('keyboard')+'<div><strong>The keyboard-first alternative.</strong> When a barcode won\'t scan — or for a bulk delivery of many lines — staff key everything into one grid and receive it in a single pass. Tab moves field to field; no camera required.</div>';
+  recount();
+}
+
+function domSelect(val){
+  return '<select class="input">'+DOMS.map(function(d){
+    return '<option'+(d===val?' selected':'')+'>'+d+'</option>'; }).join('')+'</select>';
+}
+
+function addRow(r){
+  r=r||['','Surgical','','',''];
+  var tb=document.getElementById('rows');
+  var tr=document.createElement('tr');
+  tr.innerHTML=
+    '<td><input class="input" value="'+esc(r[0])+'" placeholder="Product name"></td>'+
+    '<td>'+domSelect(r[1])+'</td>'+
+    '<td><input class="input" value="'+esc(r[2])+'" placeholder="Lot #"></td>'+
+    '<td><input class="input" value="'+esc(r[3])+'" placeholder="YYYY-MM-DD"></td>'+
+    '<td><input class="input qty" value="'+esc(r[4])+'" placeholder="0" inputmode="numeric" oninput="recount()" style="max-width:90px"></td>'+
+    '<td><button class="btn danger sm" title="Remove row" onclick="removeRow(this)"></button></td>';
+  tb.appendChild(tr);
+  tr.querySelector('.btn.danger').innerHTML=TJ.icon('x','ico-sm');
+  recount();
+}
+
+function removeRow(btn){
+  var tr=btn.closest('tr'); tr.parentNode.removeChild(tr); recount();
+}
+
+function recount(){
+  var rows=TJ.qsa('#rows tr'), units=0;
+  rows.forEach(function(tr){ units+=parseInt(tr.querySelector('.qty').value,10)||0; });
+  document.getElementById('total').textContent=rows.length+' item'+(rows.length===1?'':'s')+' · '+units+' unit'+(units===1?'':'s');
+}
+
+function receiveAll(){
+  var rows=TJ.qsa('#rows tr'), added=0;
+  if(!rows.length){ TJ.toast('Add a row first', false); return; }
+  rows.forEach(function(tr){
+    var ins=tr.querySelectorAll('input'),
+        p=ins[0].value.trim(), q=(tr.querySelector('.qty').value||'').trim();
+    if(!p) return;
+    TJ.state.received.push({p:p,q:q,at:Date.now()}); added++;
+  });
+  if(!added){ TJ.toast('Enter a product name first', false); return; }
+  TJ.save();
+  TJ.toast(added+' line'+(added===1?'':'s')+' received · FEFO lots recorded');
+  document.getElementById('rows').innerHTML='';
+  addRow(); recount();
+}
+
+function esc(s){ return String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+</script>
+</body>
+</html>

@@ -1,7 +1,8 @@
 /* ============================================================
-   TJ DERM — shared app runtime
-   - SVG icon set (Lucide-style, no emoji)
-   - persistent state (localStorage)  -> every click sticks
+   Dermatology & Skin Cancer Center — shared app runtime
+   - SVG icon set (no emoji)
+   - role-scoped navigation (Doctor / Supply room / Front desk)
+   - the role is set by which page you're on; launcher picks it
    - mounts the sidebar + topbar shell on every page
    ============================================================ */
 (function (w) {
@@ -37,89 +38,78 @@
     layers:'<path d="M12.8 2.2a2 2 0 0 0-1.6 0L2.6 6a1 1 0 0 0 0 1.9l8.6 3.9a2 2 0 0 0 1.6 0l8.6-3.9a1 1 0 0 0 0-1.9z"/><path d="m22 17.7-9.2 4.2a2 2 0 0 1-1.6 0L2 17.7"/><path d="m22 12.7-9.2 4.2a2 2 0 0 1-1.6 0L2 12.7"/>',
     clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
     file:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="m9 15 2 2 4-4"/>',
-    home:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>'
+    home:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+    users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
+    swap:'<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>'
   };
   function icon(name, cls){ return '<svg class="ico '+(cls||'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(P[name]||'')+'</svg>'; }
 
   /* ---------- STATE ---------- */
-  var KEY='tjderm.v1';
-  var DEFAULT={ theme:'clinical', role:'doctor', autoReorder:false, approvals:{}, pos:{}, received:[] };
+  var KEY='tjui.v3';
+  var DEFAULT={ role:'staff' };
   function load(){ try{ return Object.assign({},DEFAULT,JSON.parse(localStorage.getItem(KEY)||'{}')); }catch(e){ return Object.assign({},DEFAULT); } }
   function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
   var state = load();
 
-  /* ---------- NAV ---------- */
-  var NAV=[
-    {sec:'By role'},
-    {id:'dashboard', label:'Doctor glance',  icon:'stetho', href:'dashboard.html'},
-    {id:'dashboard-ops', label:'MA console', icon:'scan', href:'dashboard-ops.html'},
-    {id:'auth',      label:'Front desk · Prior Auth', icon:'shield', href:'prior-auth.html', badge:3},
-    {sec:'Inventory'},
-    {id:'stock',     label:'Stock',      icon:'box',       href:'stock.html'},
-    {id:'receive',   label:'Receive',    icon:'scan',      href:'receive-scan.html'},
-    {id:'alerts',    label:'Alerts & Reorder', icon:'bell', href:'alerts.html', badge:5},
-    {sec:'More receive concepts'},
-    {id:'receive-grid',  label:'Receive · fast grid', icon:'keyboard', href:'receive-grid.html', alt:true},
-    {id:'receive-guided',label:'Receive · guided',    icon:'sparkles', href:'receive-guided.html', alt:true}
-  ];
-  var TITLES={dashboard:"Doctor's glance",'dashboard-ops':'Medical-assistant console',stock:'Stock on hand',
-    receive:'Receive a shipment','receive-grid':'Receive · fast grid','receive-guided':'Receive · guided',
-    alerts:'Alerts & reorder',auth:'Prior-authorization queue'};
-
-  var PEOPLE={ doctor:{av:'TG',nm:'Dr. Giuffrida',rl:'Owner · review & approve'},
-               staff:{av:'JS',nm:'Jess · front desk',rl:'Staff · full access'} };
+  /* ---------- ROLES + NAV ---------- */
+  var NAV_BY_ROLE = {
+    doctor: [
+      {id:'dashboard', label:'Today', icon:'stetho', href:'dashboard.html'}
+    ],
+    staff: [
+      {id:'dashboard-ops', label:'Home',  icon:'home', href:'dashboard-ops.html'},
+      {id:'stock',  label:'Inventory',    icon:'box',  href:'stock.html'},
+      {id:'receive',label:'Receive',      icon:'scan', href:'receive-scan.html'},
+      {id:'alerts', label:'Alerts & Reorder', icon:'bell', href:'alerts.html', badge:5}
+    ],
+    frontdesk: [
+      {id:'auth', label:'Prior Authorization', icon:'shield', href:'prior-auth.html'}
+    ]
+  };
+  var ACTIVE_ROLE = { dashboard:'doctor', 'dashboard-ops':'staff', stock:'staff', receive:'staff', alerts:'staff', auth:'frontdesk' };
+  var TITLES = { dashboard:"Today", 'dashboard-ops':'Supply room', stock:'Inventory', receive:'Receive a delivery',
+    alerts:'Alerts & reorder', auth:'Prior-authorization queue' };
+  var ROLE = {
+    doctor:    {label:'Doctor',      who:'Dr. Giuffrida', sub:'Owner · review only', av:'TG'},
+    staff:     {label:'Supply room', who:'Jess · MA',     sub:'Receives, counts, orders', av:'JS'},
+    frontdesk: {label:'Front desk',  who:'Front desk',    sub:'Insurance & prior-auth', av:'FD'}
+  };
 
   /* ---------- SHELL ---------- */
   function mount(opts){
     opts=opts||{}; var active=opts.active||'dashboard';
-    document.documentElement.setAttribute('data-theme', state.theme);
-    document.documentElement.setAttribute('data-role', state.role);
+    var role = opts.role || ACTIVE_ROLE[active] || state.role || 'staff';
+    if(role!==state.role){ state.role=role; save(); }
+    document.documentElement.setAttribute('data-role', role);
 
-    // sidebar
-    var nav=NAV.map(function(n){
-      if(n.sec) return '<div class="s-sec">'+n.sec+'</div>';
+    var nav=(NAV_BY_ROLE[role]||[]).map(function(n){
       var on=(n.id===active)?' active':'';
       var badge=n.badge?'<span class="badge">'+n.badge+'</span>':'';
-      return '<a class="nav-i'+(n.alt?' alt':'')+on+'" href="'+n.href+'">'+icon(n.icon)+'<span>'+n.label+'</span>'+badge+'</a>';
+      return '<a class="nav-i'+on+'" href="'+n.href+'">'+icon(n.icon)+'<span>'+n.label+'</span>'+badge+'</a>';
     }).join('');
+    var r=ROLE[role]||ROLE.staff;
     var side=document.getElementById('sidebar');
     if(side) side.innerHTML=
-      '<div class="s-brand"><svg class="logo" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="tjbrand" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#15a3a3"/><stop offset="1" stop-color="#0b6f70"/></linearGradient></defs><rect width="40" height="40" rx="11" fill="url(#tjbrand)"/><path d="M15 9.5C20.5 8 23.8 10.2 23.8 13.6 23.8 15.4 27 15.7 27.6 18.4 27.9 19.8 25 20 24.9 21.4 24.8 23 26.2 23.4 24.7 25 23.6 26.3 22 27.4 20.2 28.2" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 9.5V28.5" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.85"/><path d="M10 30.5H26" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.55"/></svg>'+
-      '<span class="wm"><b>Dermatology &amp;<br>Skin&nbsp;Cancer&nbsp;Center</b><span>Inventory &amp; Auth</span></span></div>'+
+      '<a class="s-brand" href="index.html" style="text-decoration:none"><svg class="logo" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="tjbrand" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#2c7a62"/><stop offset="1" stop-color="#15402f"/></linearGradient></defs><rect width="40" height="40" rx="11" fill="url(#tjbrand)"/><path d="M15 9.5C20.5 8 23.8 10.2 23.8 13.6 23.8 15.4 27 15.7 27.6 18.4 27.9 19.8 25 20 24.9 21.4 24.8 23 26.2 23.4 24.7 25 23.6 26.3 22 27.4 20.2 28.2" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 9.5V28.5" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.85"/><path d="M10 30.5H26" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.55"/></svg>'+
+      '<span class="wm"><b>Dermatology &amp;<br>Skin&nbsp;Cancer&nbsp;Center</b><span>'+r.label+'</span></span></a>'+
       '<nav>'+nav+'</nav>'+
+      '<a class="nav-i switch" href="index.html">'+icon('swap')+'<span>Switch user</span></a>'+
       '<div class="s-foot">Prototype · sample, de-identified data<br>Coral Gables, FL · HIPAA / CLIA</div>';
 
-    // topbar
-    var who=PEOPLE[state.role];
     var top=document.getElementById('topbar');
     if(top) top.innerHTML=
       '<button class="tb-burger" aria-label="Menu" onclick="TJ.toggleNav()">'+icon('menu')+'</button>'+
-      '<div><h1>'+(TITLES[active]||'TJ DERM')+'</h1><div class="crumb">Tuesday · live prototype</div></div>'+
+      '<div><h1>'+(TITLES[active]||'Dermatology & Skin Cancer Center')+'</h1><div class="crumb">'+r.label+' · live prototype</div></div>'+
       '<div class="spacer"></div>'+
-      '<div class="seg role" role="group" aria-label="Role">'+
-        '<button id="r-doc" class="'+(state.role==='doctor'?'on':'')+'" onclick="TJ.setRole(\'doctor\')">'+icon('stetho','ico-sm')+'<span class="lbl">Doctor</span></button>'+
-        '<button id="r-staff" class="'+(state.role==='staff'?'on':'')+'" onclick="TJ.setRole(\'staff\')">'+icon('box','ico-sm')+'<span class="lbl">Staff</span></button>'+
-      '</div>'+
-      '<div class="swatches" role="group" aria-label="Theme">'+
-        '<div class="sw clinical '+(state.theme==='clinical'?'on':'')+'" title="Clinical" onclick="TJ.setTheme(\'clinical\')"></div>'+
-        '<div class="sw midnight '+(state.theme==='midnight'?'on':'')+'" title="Midnight" onclick="TJ.setTheme(\'midnight\')"></div>'+
-        '<div class="sw warm '+(state.theme==='warm'?'on':'')+'" title="Warm" onclick="TJ.setTheme(\'warm\')"></div>'+
-      '</div>'+
-      '<div class="who"><div class="av">'+who.av+'</div><div class="meta"><div class="nm">'+who.nm+'</div><div class="rl">'+who.rl+'</div></div></div>';
+      '<a class="btn ghost sm" href="index.html">'+icon('swap','ico-sm')+'Switch user</a>'+
+      '<div class="who"><div class="av">'+r.av+'</div><div class="meta"><div class="nm">'+r.who+'</div><div class="rl">'+r.sub+'</div></div></div>';
 
-    // defer onReady one tick so page-level `var` constants below the mount() call are initialized first
     if(opts.onReady) setTimeout(function(){ try{ opts.onReady(state); }catch(e){ console.error(e); } },0);
   }
 
-  function setTheme(t){ state.theme=t; save(); document.documentElement.setAttribute('data-theme',t);
-    qsa('.sw').forEach(function(s){ s.classList.toggle('on', s.classList.contains(t)); }); }
-  function setRole(r){ state.role=r; save(); document.documentElement.setAttribute('data-role',r);
-    var d=document.getElementById('r-doc'), s=document.getElementById('r-staff');
-    if(d) d.classList.toggle('on',r==='doctor'); if(s) s.classList.toggle('on',r==='staff');
-    var who=PEOPLE[r], av=qs('.who .av'), nm=qs('.who .nm'), rl=qs('.who .rl');
-    if(av) av.textContent=who.av; if(nm) nm.textContent=who.nm; if(rl) rl.textContent=who.rl;
-    document.dispatchEvent(new CustomEvent('tj:role',{detail:r}));
-    toast(r==='doctor'?'Doctor view — review & approve only':'Staff view — receive, count & adjust'); }
+  function enter(role){ state.role=role; save(); var nav=NAV_BY_ROLE[role]; location.href=(nav&&nav[0]?nav[0].href:'dashboard.html'); }
+  function setRole(r){ state.role=r; save(); document.documentElement.setAttribute('data-role',r); }
+  function setTheme(){ /* single theme — no-op kept for compatibility */ }
   function toggleNav(){ var a=qs('.app'); if(a) a.classList.toggle('nav-open'); }
 
   /* ---------- TOAST ---------- */
@@ -131,9 +121,7 @@
     tTimer=setTimeout(function(){ tEl.classList.remove('show'); },2400);
   }
 
-  function qs(s,r){return (r||document).querySelector(s);} function qsa(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));}
-
-  /* ---------- money + modal/form helper ---------- */
+  /* ---------- money + modal/form ---------- */
   function money(n){ n=Math.round((+n||0)*100)/100; return '$'+n.toLocaleString('en-US',{minimumFractionDigits:(n%1?2:0),maximumFractionDigits:2}); }
   var _modal;
   function modal(o){
@@ -165,7 +153,10 @@
   }
   function closeModal(){ if(_modal){ _modal.remove(); _modal=null; } }
 
-  w.TJ={ icon:icon, mount:mount, setTheme:setTheme, setRole:setRole, toggleNav:toggleNav,
+  function qs(s,r){return (r||document).querySelector(s);} function qsa(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));}
+
+  w.TJ={ icon:icon, mount:mount, enter:enter, setRole:setRole, setTheme:setTheme, toggleNav:toggleNav,
          toast:toast, state:state, save:save, qs:qs, qsa:qsa,
-         money:money, modal:modal, closeModal:closeModal };
+         money:money, modal:modal, closeModal:closeModal,
+         ROLE:ROLE, NAV_BY_ROLE:NAV_BY_ROLE };
 })(window);

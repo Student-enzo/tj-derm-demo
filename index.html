@@ -4,100 +4,64 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Dermatology &amp; Skin Cancer Center — Inventory &amp; Prior-Auth</title>
-<meta name="description" content="Interactive prototype of TJ DERM: medical inventory that manages itself, plus insurance prior-authorization for a dermatology practice.">
 <link rel="icon" href="assets/img/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/tokens.css">
 <link rel="stylesheet" href="assets/css/app.css">
 <style>
-  .hub{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:54px 20px 70px}
-  .hub-bg{position:fixed;inset:0;z-index:-1;background:
-     radial-gradient(60% 50% at 50% 0%, color-mix(in srgb,var(--brand) 12%,transparent), transparent 70%), var(--bg)}
-  .hub .top{display:flex;gap:8px;align-items:center;margin-bottom:34px}
-  .hub .logo{width:48px;height:48px}
-  .hub .wm{font-family:var(--font-display);font-size:24px;font-weight:700;letter-spacing:.4px}
-  .hub h1{font-family:var(--font-display);font-size:clamp(30px,5vw,46px);font-weight:700;text-align:center;
-     letter-spacing:-.5px;margin:0;max-width:16ch;line-height:1.1}
-  .hub .lead{color:var(--ink-2);font-size:clamp(15px,2.2vw,18px);text-align:center;max-width:56ch;margin:16px 0 6px}
-  .hub .for{display:inline-flex;align-items:center;gap:7px;background:var(--accent-soft);color:var(--ink-2);
-     font-size:12.5px;font-weight:700;padding:6px 13px;border-radius:999px;margin-top:18px}
-  .hub .ctas{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:26px 0 12px}
-  .hub .swrap{display:flex;align-items:center;gap:10px;margin-top:18px;color:var(--ink-3);font-size:12.5px}
-  .wrap{width:100%;max-width:1080px;margin:0 auto}
-  .lbl{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-3);margin:46px 0 14px;display:flex;align-items:center;gap:8px}
-  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-  .c{display:flex;flex-direction:column;gap:10px;padding:20px;border-radius:var(--r-lg);background:var(--panel);
-     box-shadow:var(--ring-1),var(--shadow);transition:.18s var(--ease);cursor:pointer}
-  .c:hover{transform:translateY(-3px);box-shadow:var(--ring-1),0 14px 32px rgba(0,0,0,.12)}
-  .c .ci{width:42px;height:42px;border-radius:12px;background:var(--accent-soft);color:var(--brand);display:grid;place-items:center}
-  .c h3{margin:2px 0 0;font-size:16px;font-weight:800}
-  .c p{margin:0;color:var(--ink-2);font-size:13.5px;line-height:1.5}
-  .c .go{margin-top:auto;color:var(--brand);font-size:13px;font-weight:700;display:flex;align-items:center;gap:5px}
-  .c.alt{background:var(--panel-2)}
-  .foot{color:var(--ink-3);font-size:12.5px;text-align:center;margin-top:48px;line-height:1.6}
-  @media(max-width:760px){.cards{grid-template-columns:1fr}}
+  .launch{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px 64px;position:relative;z-index:1}
+  .launch .brand{display:flex;align-items:center;gap:12px;margin-bottom:30px}
+  .launch .brand .nm{font-family:var(--font-display);font-size:19px;font-weight:600;line-height:1.1;color:var(--ink)}
+  .launch .brand .nm small{display:block;font-family:var(--font-ui);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3);margin-top:4px}
+  .launch h1{font-family:var(--font-display);font-size:clamp(28px,5vw,44px);font-weight:600;text-align:center;margin:0;letter-spacing:-.4px;color:var(--ink);max-width:18ch;line-height:1.08}
+  .launch .lead{color:var(--ink-2);font-size:clamp(14px,2vw,17px);text-align:center;max-width:54ch;margin:16px 0 6px}
+  .launch .q{margin:34px 0 16px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-3)}
+  .roles{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;width:100%;max-width:920px}
+  .role{display:flex;flex-direction:column;gap:12px;padding:24px;border-radius:var(--r-lg);background:var(--panel);
+    box-shadow:var(--ring-1),0 12px 26px -10px rgba(28,43,38,.15);cursor:pointer;text-align:left;transition:.18s var(--ease);border:1px solid transparent}
+  .role:hover{transform:translateY(-4px);border-color:var(--brand);box-shadow:var(--ring-1),0 18px 38px -12px rgba(28,43,38,.28)}
+  .role .ic{width:50px;height:50px;border-radius:14px;background:var(--accent-soft);color:var(--brand);display:grid;place-items:center}
+  .role .ic svg{width:26px;height:26px}
+  .role h3{margin:4px 0 0;font-size:18px;font-weight:800;color:var(--ink)}
+  .role .meta{font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.05em}
+  .role p{margin:0;color:var(--ink-2);font-size:13.5px;line-height:1.5}
+  .role .go{margin-top:auto;color:var(--brand);font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px}
+  .launch .foot{color:var(--ink-3);font-size:12.5px;text-align:center;margin-top:36px;line-height:1.6;max-width:60ch}
+  @media(max-width:720px){ .roles{grid-template-columns:1fr;max-width:420px} .launch{justify-content:flex-start;padding-top:40px} }
 </style>
 </head>
 <body>
-<div class="hub-bg"></div>
-<div class="hub">
-  <div class="top"><img class="logo" src="assets/img/logo.svg" alt=""><span class="wm" style="font-size:17px;line-height:1.15;letter-spacing:.02em">Dermatology &amp; Skin Cancer Center</span></div>
-  <h1 class="display">Inventory that manages itself.</h1>
-  <p class="lead">A medical inventory system for a dermatology practice — and an insurance prior-authorization tracker that never lets a case stall. Everything below is live: tap, scan, approve, switch the look.</p>
-  <div class="for" id="for"></div>
-  <div class="ctas">
-    <a class="btn primary" href="dashboard.html" id="cta1"></a>
-    <a class="btn ghost" href="receive-scan.html" id="cta2"></a>
-  </div>
-  <div class="swrap">
-    <span>Pick a look:</span>
-    <div class="sw clinical" title="Clinical" onclick="TJ.setTheme('clinical')"></div>
-    <div class="sw midnight" title="Midnight" onclick="TJ.setTheme('midnight')"></div>
-    <div class="sw warm" title="Warm" onclick="TJ.setTheme('warm')"></div>
-    <span class="tiny">switches every screen</span>
+<div class="launch">
+  <div class="brand">
+    <svg width="44" height="44" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#2c7a62"/><stop offset="1" stop-color="#15402f"/></linearGradient></defs><rect width="40" height="40" rx="11" fill="url(#lg)"/><path d="M15 9.5C20.5 8 23.8 10.2 23.8 13.6 23.8 15.4 27 15.7 27.6 18.4 27.9 19.8 25 20 24.9 21.4 24.8 23 26.2 23.4 24.7 25 23.6 26.3 22 27.4 20.2 28.2" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 9.5V28.5" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.85"/><path d="M10 30.5H26" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.55"/></svg>
+    <div class="nm">Dermatology &amp; Skin Cancer Center<small>Inventory &amp; Prior-Auth</small></div>
   </div>
 
-  <div class="wrap">
-    <div class="lbl" id="l1"></div>
-    <div class="cards" id="core"></div>
+  <h1>The supply room that runs itself.</h1>
+  <p class="lead">Receive, use, reorder and track insurance — each person gets the screen built for their job, on their device. Everything below is live.</p>
 
-    <div class="lbl" id="l2"></div>
-    <p class="tiny" style="margin:-6px 0 14px;max-width:60ch">Same job, different designs — so Dr. Giuffrida can pick the approach that fits the team. Each one is a working demo.</p>
-    <div class="cards" id="alt"></div>
+  <div class="q">Who's signing in?</div>
+  <div class="roles" id="roles"></div>
 
-    <div class="foot" id="foot"></div>
-  </div>
+  <div class="foot" id="foot"></div>
 </div>
 
 <script src="assets/js/store.js"></script>
 <script src="assets/js/inventory.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
-document.documentElement.setAttribute('data-theme', TJ.state.theme);
-document.getElementById('for').innerHTML=TJ.icon('stetho','ico-sm')+'Prototype for Dr. T.J. Giuffrida · Coral Gables';
-document.getElementById('cta1').innerHTML=TJ.icon('dashboard','ico-sm')+'Open the dashboard';
-document.getElementById('cta2').innerHTML=TJ.icon('scan','ico-sm')+'Try the scan flow';
-document.getElementById('l1').innerHTML=TJ.icon('layers','ico-sm')+'The five core screens';
-document.getElementById('l2').innerHTML=TJ.icon('sparkles','ico-sm')+'Compare design concepts';
-document.getElementById('foot').innerHTML='Sample, de-identified data — no real patient information. Works on phone and desktop.<br>A working prototype: ~40 live formulas (FEFO, par levels, LN2 boil-off, days-of-cover), full add / receive / use / adjust — every change persists in your browser.';
-
-var CORE=[
-  ['stetho','dashboard.html',"Dr. Giuffrida's glance","A 5-second traffic-light. What's low, what's expiring, which prior-auth blocks today's schedule. Zero typing — ever."],
-  ['scan','dashboard-ops.html','Medical-assistant console','The power tool: one-tap “log a Mohs case” deducts the whole kit, scan-to-receive, live activity feed. Built for hands-busy staff.'],
-  ['shield','prior-auth.html','Front desk · Prior-Auth','Phase 2. A queue sorted by what’s on fire — soonest blocked appointment first — with who to call and one-tap advance.'],
-  ['box','stock.html','Stock & inventory','Add, receive, use, adjust — every number computed live: par, FEFO, days-of-cover, LN2 boil-off, on-hand value.'],
-  ['bell','alerts.html','Alerts & reorder','Expiry digest + auto-drafted POs. Every alert has a next step — reorder, mark used, snooze. Approve-each or auto.']
+var ROLES=[
+  ['doctor','stetho','Doctor','Dr. Giuffrida · phone',"A 5-second glance — what's low, what's expiring, which prior-auth blocks today. Tap to approve. He never types."],
+  ['staff','box','Supply room','Medical assistants · tablet',"Receive a delivery by scan, log a Mohs case in one tap, watch par levels, and send reorders."],
+  ['frontdesk','shield','Front desk','Insurance · desktop',"The prior-authorization queue — sorted by what's on fire, with who to call and one-tap advance."]
 ];
-var ALT=[
-  ['keyboard','receive-grid.html','Receive · fast grid','No camera — a spreadsheet-style grid to key in several deliveries in seconds.'],
-  ['sparkles','receive-guided.html','Receive · guided','A calm step-by-step wizard — identify, confirm, count, done — for occasional users.'],
-  ['camera','receive-scan.html','Receive · scan-first','Point the phone at the box; lot and expiry fill themselves. The default receiving flow.']
-];
-function card(a,alt){ return '<a class="c'+(alt?' alt':'')+'" href="'+a[1]+'"><div class="ci">'+TJ.icon(a[0])+'</div>'+
-  '<h3>'+a[2]+'</h3><p>'+a[3]+'</p><div class="go">Open '+TJ.icon('arrow','ico-sm')+'</div></a>'; }
-document.getElementById('core').innerHTML=CORE.map(function(a){return card(a,false);}).join('');
-document.getElementById('alt').innerHTML=ALT.map(function(a){return card(a,true);}).join('');
+document.getElementById('roles').innerHTML=ROLES.map(function(r){
+  return '<div class="role" onclick="TJ.enter(\''+r[0]+'\')"><div class="ic">'+TJ.icon(r[1])+'</div>'+
+    '<div class="meta">'+r[3]+'</div><h3>'+r[2]+'</h3><p>'+r[4]+'</p>'+
+    '<div class="go">Enter '+TJ.icon('arrow','ico-sm')+'</div></div>';
+}).join('');
+document.getElementById('foot').innerHTML='Sample, de-identified data — no real patient information. Works on phone and desktop.<br>One shared source of truth · ~15 live formulas (FEFO, par, LN2 boil-off, days-of-cover) · everything you do persists in your browser.';
 </script>
 </body>
 </html>

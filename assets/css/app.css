@@ -57,7 +57,7 @@ svg{display:block} .ico{width:20px;height:20px;stroke-width:1.9;flex:none}
   display:grid;place-items:center;font-weight:700;font-size:13px}
 .who .nm{font-size:13px;font-weight:700;line-height:1.2} .who .rl{font-size:11px;color:var(--ink-3)}
 
-.content{padding:24px;max-width:var(--maxw);width:100%}
+.content{padding:24px 32px;max-width:1460px;width:100%;margin:0 auto}
 .page-head{margin-bottom:20px}
 .page-head .eyebrow{color:var(--brand);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
 .page-head h2{margin:5px 0 0;font-size:25px;font-weight:800;letter-spacing:-.4px}
@@ -228,3 +228,9 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;bac
 .formulas .fr{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
 .formulas .fr b{font-weight:700;white-space:nowrap} .formulas .fr span{color:var(--ink-2);text-align:right}
 @media(max-width:760px){.formulas{grid-template-columns:1fr}}
+
+/* ---------------- SWITCH-USER + brand-as-link ---------------- */
+.s-brand{text-decoration:none}
+.nav-i.switch{margin-top:auto;color:var(--sidebar-ink-2);border-top:1px solid rgba(255,255,255,.09);border-radius:0;margin-bottom:2px;padding-top:14px;font-size:13px}
+.nav-i.switch:hover{color:rgba(255,255,255,.88);background:transparent}
+.s-foot{margin-top:10px}

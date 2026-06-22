@@ -84,7 +84,7 @@
     }).join('');
     var side=document.getElementById('sidebar');
     if(side) side.innerHTML=
-      '<div class="s-brand"><img class="logo" src="assets/img/logo.svg" alt=""/>'+
+      '<div class="s-brand"><svg class="logo" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="tjbrand" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stop-color="#15a3a3"/><stop offset="1" stop-color="#0b6f70"/></linearGradient></defs><rect width="40" height="40" rx="11" fill="url(#tjbrand)"/><path d="M15 9.5C20.5 8 23.8 10.2 23.8 13.6 23.8 15.4 27 15.7 27.6 18.4 27.9 19.8 25 20 24.9 21.4 24.8 23 26.2 23.4 24.7 25 23.6 26.3 22 27.4 20.2 28.2" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 9.5V28.5" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.85"/><path d="M10 30.5H26" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.55"/></svg>'+
       '<span class="wm"><b>Dermatology &amp;<br>Skin&nbsp;Cancer&nbsp;Center</b><span>Inventory &amp; Auth</span></span></div>'+
       '<nav>'+nav+'</nav>'+
       '<div class="s-foot">Prototype · sample, de-identified data<br>Coral Gables, FL · HIPAA / CLIA</div>';
@@ -107,7 +107,8 @@
       '</div>'+
       '<div class="who"><div class="av">'+who.av+'</div><div class="meta"><div class="nm">'+who.nm+'</div><div class="rl">'+who.rl+'</div></div></div>';
 
-    if(opts.onReady) opts.onReady(state);
+    // defer onReady one tick so page-level `var` constants below the mount() call are initialized first
+    if(opts.onReady) setTimeout(function(){ try{ opts.onReady(state); }catch(e){ console.error(e); } },0);
   }
 
   function setTheme(t){ state.theme=t; save(); document.documentElement.setAttribute('data-theme',t);

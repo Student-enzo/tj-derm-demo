@@ -203,8 +203,8 @@ tbody tr:last-child td{border-bottom:none} tbody tr:hover{background:var(--panel
 
 /* ---------------- DERMAL-RIDGE BACKGROUND (derm analog of AYC level-curves) ---------------- */
 body{position:relative}
-body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background-color:var(--ink);opacity:.045;
-  -webkit-mask:url('../img/pattern.svg') 0 0 / 300px repeat; mask:url('../img/pattern.svg') 0 0 / 300px repeat}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background-color:var(--ink);opacity:.022;
+  -webkit-mask:url('../img/pattern.svg') 0 0 / 190px repeat; mask:url('../img/pattern.svg') 0 0 / 190px repeat}
 .app,.hub{position:relative;z-index:1}
 
 /* ---------------- MODAL / FORMS (for add / receive / use / adjust) ---------------- */

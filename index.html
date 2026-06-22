@@ -42,7 +42,7 @@
 <body>
 <div class="hub-bg"></div>
 <div class="hub">
-  <div class="top"><img class="logo" src="assets/img/logo.svg" alt=""><span class="wm">TJ&nbsp;DERM</span></div>
+  <div class="top"><img class="logo" src="assets/img/logo.svg" alt=""><span class="wm" style="font-size:17px;line-height:1.15;letter-spacing:.02em">Dermatology &amp; Skin Cancer Center</span></div>
   <h1 class="display">Inventory that manages itself.</h1>
   <p class="lead">A medical inventory system for a dermatology practice — and an insurance prior-authorization tracker that never lets a case stall. Everything below is live: tap, scan, approve, switch the look.</p>
   <div class="for" id="for"></div>
@@ -70,6 +70,8 @@
   </div>
 </div>
 
+<script src="assets/js/store.js"></script>
+<script src="assets/js/inventory.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
 document.documentElement.setAttribute('data-theme', TJ.state.theme);
@@ -78,19 +80,19 @@ document.getElementById('cta1').innerHTML=TJ.icon('dashboard','ico-sm')+'Open th
 document.getElementById('cta2').innerHTML=TJ.icon('scan','ico-sm')+'Try the scan flow';
 document.getElementById('l1').innerHTML=TJ.icon('layers','ico-sm')+'The five core screens';
 document.getElementById('l2').innerHTML=TJ.icon('sparkles','ico-sm')+'Compare design concepts';
-document.getElementById('foot').innerHTML='Sample, de-identified data — no real patient information. Works on phone and desktop.<br>Design language adapted from the Atlantic Yacht Charter system, re-skinned for clinical use.';
+document.getElementById('foot').innerHTML='Sample, de-identified data — no real patient information. Works on phone and desktop.<br>A working prototype: ~40 live formulas (FEFO, par levels, LN2 boil-off, days-of-cover), full add / receive / use / adjust — every change persists in your browser.';
 
 var CORE=[
-  ['dashboard','dashboard.html','Doctor dashboard',"His screen. Green/yellow/red across all four domains, one-tap reorder approvals, liquid-nitrogen gauge — no data entry."],
-  ['box','stock.html','Stock on hand','Search and filter every item across surgical, lab, liquid nitrogen and topicals. Table or card view.'],
-  ['scan','receive-scan.html','Receive','Scan a UDI barcode and the lot number and expiry fill themselves. Staff confirm the count.'],
-  ['bell','alerts.html','Alerts & reorder','Daily expiry digest plus auto-drafted purchase orders. Approve each, or auto-reorder at par.'],
-  ['shield','prior-auth.html','Prior authorization','Phase 2 — track every insurance auth from request to approval so nothing delays a procedure.']
+  ['stetho','dashboard.html',"Dr. Giuffrida's glance","A 5-second traffic-light. What's low, what's expiring, which prior-auth blocks today's schedule. Zero typing — ever."],
+  ['scan','dashboard-ops.html','Medical-assistant console','The power tool: one-tap “log a Mohs case” deducts the whole kit, scan-to-receive, live activity feed. Built for hands-busy staff.'],
+  ['shield','prior-auth.html','Front desk · Prior-Auth','Phase 2. A queue sorted by what’s on fire — soonest blocked appointment first — with who to call and one-tap advance.'],
+  ['box','stock.html','Stock & inventory','Add, receive, use, adjust — every number computed live: par, FEFO, days-of-cover, LN2 boil-off, on-hand value.'],
+  ['bell','alerts.html','Alerts & reorder','Expiry digest + auto-drafted POs. Every alert has a next step — reorder, mark used, snooze. Approve-each or auto.']
 ];
 var ALT=[
-  ['list','dashboard-ops.html','Dashboard · ops view','A dense, action-first alternative for an office manager — everything needing attention in one worklist.'],
-  ['keyboard','receive-grid.html','Receive · fast grid','No camera. A spreadsheet-style grid to key in several items in seconds.'],
-  ['sparkles','receive-guided.html','Receive · guided','A calm step-by-step wizard — identify, confirm, count, done — for occasional users.']
+  ['keyboard','receive-grid.html','Receive · fast grid','No camera — a spreadsheet-style grid to key in several deliveries in seconds.'],
+  ['sparkles','receive-guided.html','Receive · guided','A calm step-by-step wizard — identify, confirm, count, done — for occasional users.'],
+  ['camera','receive-scan.html','Receive · scan-first','Point the phone at the box; lot and expiry fill themselves. The default receiving flow.']
 ];
 function card(a,alt){ return '<a class="c'+(alt?' alt':'')+'" href="'+a[1]+'"><div class="ci">'+TJ.icon(a[0])+'</div>'+
   '<h3>'+a[2]+'</h3><p>'+a[3]+'</p><div class="go">Open '+TJ.icon('arrow','ico-sm')+'</div></a>'; }

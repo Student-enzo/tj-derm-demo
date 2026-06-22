@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Stock · TJ DERM</title>
+<title>Stock on hand · Dermatology &amp; Skin Cancer Center</title>
 <link rel="icon" href="assets/img/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
@@ -16,96 +16,225 @@
   <div class="backdrop" onclick="TJ.toggleNav()"></div>
   <div class="main">
     <header class="topbar" id="topbar"></header>
-    <div class="content">
-      <div class="page-head">
-        <div class="eyebrow">Live inventory</div>
-        <h2>Stock on hand</h2>
-        <p>Every domain in one place. Status updates as stock is received, used, or expires.</p>
-      </div>
-
-      <div class="row" style="align-items:center;margin-bottom:14px;gap:12px">
-        <div style="position:relative;flex:1;min-width:200px">
-          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-3)" id="si"></span>
-          <input class="input" id="q" placeholder="Search items, lots, vendors…" style="padding-left:40px" oninput="render()">
-        </div>
-        <div class="seg"><button class="on" id="vTable" onclick="setView('table')">Table</button><button id="vCard" onclick="setView('cards')">Cards</button></div>
-      </div>
-
-      <div class="chips" id="chips"></div>
-
-      <div class="panel" id="tableWrap">
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Item</th><th>Domain</th><th>On hand</th><th>Par</th><th>Status</th><th>Next expiry</th><th>Lot · FEFO</th></tr></thead>
-          <tbody id="rows"></tbody>
-        </table></div>
-      </div>
-      <div class="grid g3 hide" id="cardWrap" style="margin-top:0"></div>
-
-      <div class="note" id="note"></div>
-    </div>
+    <div class="content" id="content"></div>
   </div>
 </div>
 
+<script src="assets/js/store.js"></script>
+<script src="assets/js/inventory.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
-TJ.mount({active:'stock', onReady:init});
-
 var DN={Surgical:'Surgical',Lab:'Lab Reagents',LN2:'Liquid Nitrogen',Topical:'Topicals'};
 var DICON={Surgical:'scissors',Lab:'flask',LN2:'snow',Topical:'droplet'};
-var STOCK=[
-  ['4-0 Nylon suture','Box of 12','Surgical',9,4,'ok','—','—'],
-  ['Lidocaine 1% 20mL','Local anesthetic','Surgical',6,10,'bad','in 5 days','LD-7741'],
-  ['Curettes (sterile)','Single-use','Surgical',14,8,'warn','in 6 days','CR-2231'],
-  ['Surgical gauze 4×4','Sterile pack','Surgical',88,30,'ok','—','GZ-1180'],
-  ['Formalin 10%','1 gal · fixative','Lab',3,5,'warn','in 21 days','FM-0455'],
-  ['H&E stain kit','Histology reagent','Lab',2,3,'warn','in 60 days','HE-3390'],
-  ['Liquid nitrogen','Bulk dewar','LN2',38,50,'bad','est. 9 days','—'],
-  ['Aluminum chloride 20%','Hemostatic','Topical',11,8,'warn','in 24 days','AC-0912'],
-  ['Clobetasol 0.05%','Topical steroid','Topical',24,12,'ok','in 8 mo','CB-5521'],
-  ['Mupirocin 2%','Topical antibiotic','Topical',19,10,'ok','in 11 mo','MU-2204']
-];
-var dom='all', view='table';
+var DOMAINS=['Surgical','Lab','LN2','Topical'];
 
-function init(){
-  document.getElementById('si').innerHTML=TJ.icon('search','ico-sm');
-  document.getElementById('note').innerHTML=TJ.icon('layers')+'<div><strong>One source of truth.</strong> Surgical, lab, liquid nitrogen and topicals each carry their own fields, but staff search and filter them from a single list. Try the search box or a domain chip.</div>';
-  var chips='<div class="chip on" onclick="setDom(\'all\',this)">All domains</div>';
-  ['Surgical','Lab','LN2','Topical'].forEach(function(k){ chips+='<div class="chip" onclick="setDom(\''+k+'\',this)">'+TJ.icon(DICON[k],'ico-sm')+DN[k]+'</div>'; });
-  document.getElementById('chips').innerHTML=chips;
-  render();
+var domFilter='All', query='';
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+function statusPill(s){
+  if(s==='ok') return '<span class="pill ok">'+TJ.icon('check','ico-sm')+'OK</span>';
+  if(s==='warn') return '<span class="pill warn">'+TJ.icon('alert','ico-sm')+'Watch</span>';
+  return '<span class="pill bad">'+TJ.icon('alert','ico-sm')+'Reorder</span>';
 }
-function setDom(d,el){ dom=d; TJ.qsa('.chip').forEach(function(c){c.classList.remove('on');}); el.classList.add('on'); render(); }
-function setView(v){ view=v;
-  document.getElementById('vTable').classList.toggle('on',v==='table');
-  document.getElementById('vCard').classList.toggle('on',v==='cards');
-  document.getElementById('tableWrap').classList.toggle('hide',v!=='table');
-  document.getElementById('cardWrap').classList.toggle('hide',v!=='cards');
-  render();
+
+function expiryCell(it){
+  if(it.tank) return '<span class="muted">—</span>';
+  var l=INV.nextLot(it);
+  if(!l) return '<span class="muted">—</span>';
+  var bucket=INV.expiryBucket(l.expDays);
+  return '<span class="pill '+bucket+'">in '+l.expDays+'d · '+esc(l.lot)+'</span>';
 }
-function data(){ var q=(document.getElementById('q').value||'').toLowerCase();
-  return STOCK.filter(function(r){ return (dom==='all'||r[2]===dom) && (r[0]+r[1]+r[7]).toLowerCase().indexOf(q)>-1; }); }
-function pill(s){ return s==='ok'?'<span class="pill ok">'+TJ.icon('check','ico-sm')+'OK</span>'
-  : s==='warn'?'<span class="pill warn">'+TJ.icon('alert','ico-sm')+'Low / expiring</span>'
-  : '<span class="pill bad">'+TJ.icon('alert','ico-sm')+'Reorder</span>'; }
-function render(){
-  var rows=data(), u;
-  if(view==='table'){
-    document.getElementById('rows').innerHTML=rows.map(function(r){ u=r[2]==='LN2'?'%':'';
-      return '<tr><td><div class="it-name">'+r[0]+'</div><div class="it-sub">'+r[1]+'</div></td>'+
-        '<td>'+DN[r[2]]+'</td><td><strong>'+r[3]+u+'</strong></td>'+
-        '<td class="muted">'+r[4]+u+'</td><td>'+pill(r[5])+'</td><td>'+r[6]+'</td><td class="muted">'+r[7]+'</td></tr>'; }).join('')
-      || '<tr><td colspan="7" class="muted" style="text-align:center;padding:28px">No items match.</td></tr>';
-  } else {
-    document.getElementById('cardWrap').innerHTML=rows.map(function(r){ u=r[2]==='LN2'?'%':'';
-      return '<div class="panel pad"><div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">'+
-        '<div class="lrow-ic" style="width:36px;height:36px;border-radius:10px;background:var(--panel-3);display:grid;place-items:center;color:var(--ink-2)">'+TJ.icon(DICON[r[2]])+'</div>'+
-        '<div><div class="it-name">'+r[0]+'</div><div class="it-sub">'+DN[r[2]]+'</div></div>'+
-        '<div style="margin-left:auto">'+pill(r[5])+'</div></div>'+
-        '<div style="display:flex;justify-content:space-between;font-size:13px"><span class="muted">On hand</span><strong>'+r[3]+u+' / '+r[4]+u+' par</strong></div>'+
-        '<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:4px"><span class="muted">Next expiry</span><span>'+r[6]+'</span></div></div>'; }).join('')
-      || '<div class="muted">No items match.</div>';
+
+function coverCell(it){
+  var d=INV.daysOfCover(it);
+  if(d===Infinity || !isFinite(d)) return '<span class="muted">—</span>';
+  return d+'d';
+}
+
+function matches(it){
+  if(domFilter!=='All' && it.domain!==domFilter) return false;
+  if(!query) return true;
+  var q=query.toLowerCase();
+  var hay=(it.name+' '+(it.sub||'')).toLowerCase();
+  if(hay.indexOf(q)>-1) return true;
+  return (it.lots||[]).some(function(l){ return String(l.lot||'').toLowerCase().indexOf(q)>-1; });
+}
+
+/* ---------- actions ---------- */
+function openAdd(){
+  var vendors=STORE.data().vendors.map(function(v){ return {value:v.id,label:v.name}; });
+  TJ.modal({
+    title:'Add item', sub:'A new tracked item across any domain', submitLabel:'Add item',
+    fields:[
+      {name:'name',label:'Name',type:'text',placeholder:'e.g. Lidocaine 1%'},
+      {name:'sub',label:'Description',type:'text',placeholder:'20 mL vial · local anesthetic'},
+      {name:'domain',label:'Domain',type:'select',options:DOMAINS.map(function(d){return {value:d,label:d};}),value:'Surgical'},
+      {name:'unit',label:'Unit',type:'text',value:'ea'},
+      {name:'par',label:'Par level',type:'number',value:0},
+      {name:'reorderPoint',label:'Reorder point',type:'number',value:0},
+      {name:'unitCost',label:'Unit cost ($)',type:'number',value:0},
+      {name:'vendorId',label:'Vendor',type:'select',options:vendors,value:vendors[0]&&vendors[0].value},
+      {name:'usagePerWeek',label:'Usage per week',type:'number',value:0},
+      {name:'qty',label:'Starting qty',type:'number',value:0},
+      {name:'lot',label:'Lot',type:'text',value:'—'},
+      {name:'expDays',label:'Shelf life (days)',type:'number',value:365}
+    ],
+    onSubmit:function(v){
+      if(!v.name || !String(v.name).trim()) return false;
+      STORE.addItem(v);
+      TJ.toast('Added '+v.name);
+    }
+  });
+}
+
+function receive(it){
+  if(it.tank){
+    TJ.modal({title:'Receive · '+it.name, sub:'LN2 dewar refill', submitLabel:'Receive',
+      fields:[{name:'toPct',label:'Refill to %',type:'number',value:100}],
+      onSubmit:function(v){ STORE.receive({itemId:it.id,toPct:v.toPct}); TJ.toast('LN2 refilled to '+(+v.toPct)+'%'); }});
+    return;
   }
+  TJ.modal({title:'Receive · '+it.name, sub:'Log a new lot into stock', submitLabel:'Receive',
+    fields:[
+      {name:'qty',label:'Quantity',type:'number',value:0},
+      {name:'lot',label:'Lot',type:'text',value:'—'},
+      {name:'expDays',label:'Shelf life (days)',type:'number',value:365}
+    ],
+    onSubmit:function(v){ STORE.receive({itemId:it.id,qty:v.qty,lot:v.lot,expDays:v.expDays}); TJ.toast('Received '+(+v.qty||0)+' × '+it.name); }});
 }
+
+function useItem(it){
+  if(it.tank){
+    TJ.modal({title:'Use · '+it.name, sub:'Dispense from dewar', submitLabel:'Dispense',
+      fields:[{name:'pct',label:'Dispense %',type:'number',value:2}],
+      onSubmit:function(v){ STORE.useStock({itemId:it.id,pct:v.pct}); TJ.toast('Dispensed '+(+v.pct||0)+'% LN2'); }});
+    return;
+  }
+  TJ.modal({title:'Use · '+it.name, sub:'FEFO decrement — first-expiring lot first', submitLabel:'Use',
+    fields:[{name:'qty',label:'Quantity used',type:'number',value:0}],
+    onSubmit:function(v){ STORE.useStock({itemId:it.id,qty:v.qty}); TJ.toast('Used '+(+v.qty||0)+' × '+it.name); }});
+}
+
+function adjustItem(it){
+  TJ.modal({title:'Adjust · '+it.name, sub:'Cycle count or correction', submitLabel:'Adjust',
+    fields:[
+      {name:'delta',label:'Adjustment (+/−)',type:'number',value:0},
+      {name:'reason',label:'Reason',type:'select',value:'cycle count',options:[
+        {value:'waste',label:'Waste'},
+        {value:'spoilage',label:'Spoilage'},
+        {value:'expired',label:'Expired'},
+        {value:'lost',label:'Lost'},
+        {value:'cycle count',label:'Cycle count'}
+      ]}
+    ],
+    onSubmit:function(v){ STORE.adjust({itemId:it.id,delta:v.delta,reason:v.reason}); TJ.toast('Adjusted '+it.name+' '+((+v.delta>=0)?'+':'')+(+v.delta||0)); }});
+}
+
+function confirmReset(){
+  TJ.modal({title:'Reset demo data', sub:'This restores the seeded sample inventory', submitLabel:'Reset',
+    fields:[{name:'warn',label:'Heads up',type:'static',value:'All received lots, usage and adjustments you made will be discarded and the sample data restored.'}],
+    onSubmit:function(){ STORE.reset(); TJ.toast('Demo data reset'); }});
+}
+
+/* expose for inline handlers */
+window.stockReceive=function(id){ receive(STORE.item(id)); };
+window.stockUse=function(id){ useItem(STORE.item(id)); };
+window.stockAdjust=function(id){ adjustItem(STORE.item(id)); };
+
+/* ---------- render ---------- */
+function rowsHTML(){
+  var items=STORE.data().items.filter(matches);
+  if(!items.length) return '<tr><td colspan="9" class="muted" style="text-align:center;padding:28px">No items match.</td></tr>';
+  return items.map(function(it){
+    var u=it.tank?'%':'';
+    return '<tr>'+
+      '<td><div class="it-name">'+esc(it.name)+'</div><div class="it-sub">'+esc(it.sub||'')+'</div></td>'+
+      '<td>'+esc(DN[it.domain]||it.domain)+'</td>'+
+      '<td><strong>'+INV.onHand(it)+u+'</strong></td>'+
+      '<td class="muted">'+it.par+u+'</td>'+
+      '<td>'+statusPill(INV.status(it))+'</td>'+
+      '<td class="muted">'+coverCell(it)+'</td>'+
+      '<td>'+expiryCell(it)+'</td>'+
+      '<td>'+TJ.money(INV.itemValue(it))+'</td>'+
+      '<td><div class="row" style="gap:6px;flex-wrap:nowrap">'+
+        '<button class="btn ghost sm" onclick="stockReceive(\''+it.id+'\')">Receive</button>'+
+        '<button class="btn ghost sm" onclick="stockUse(\''+it.id+'\')">Use</button>'+
+        '<button class="btn ghost sm" onclick="stockAdjust(\''+it.id+'\')">Adjust</button>'+
+      '</div></td>'+
+    '</tr>';
+  }).join('');
+}
+
+function render(){
+  var k=INV.kpis();
+  var chips=['All'].concat(DOMAINS).map(function(d){
+    var on=(domFilter===d)?' on':'';
+    var label=(d==='All')?'All':(DN[d]||d);
+    var ic=(d==='All')?'':TJ.icon(DICON[d],'ico-sm');
+    return '<div class="chip'+on+'" data-dom="'+d+'">'+ic+label+'</div>';
+  }).join('');
+
+  var formulas=INV.FORMULAS.map(function(f){
+    return '<div class="fr"><b>'+esc(f.k)+'</b><span>'+esc(f.f)+'</span></div>';
+  }).join('');
+
+  var html=''+
+    '<div class="page-head">'+
+      '<div class="eyebrow">Live inventory</div>'+
+      '<h2>Stock on hand</h2>'+
+      '<p>Search, receive, use and adjust — every change recomputes instantly.</p>'+
+    '</div>'+
+
+    '<div class="grid g4" style="margin-bottom:16px">'+
+      '<div class="panel"><div class="kpi"><span class="v">'+TJ.money(k.value)+'</span><span class="l">Inventory value</span></div></div>'+
+      '<div class="panel"><div class="kpi"><span class="v">'+k.reorder+'</span><span class="l">To reorder</span></div></div>'+
+      '<div class="panel"><div class="kpi"><span class="v">'+k.expiring+'</span><span class="l">Expiring ≤30d</span></div></div>'+
+      '<div class="panel"><div class="kpi"><span class="v">'+k.items+'</span><span class="l">Items</span></div></div>'+
+    '</div>'+
+
+    '<div class="row" style="align-items:center;margin-bottom:14px">'+
+      '<button class="btn primary" id="addBtn">'+TJ.icon('plus','ico-sm')+'Add item</button>'+
+      '<button class="btn ghost" id="resetBtn">Reset demo data</button>'+
+    '</div>'+
+
+    '<div class="row" style="align-items:center;margin-bottom:14px;gap:12px">'+
+      '<div style="position:relative;flex:1;min-width:220px">'+
+        '<span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-3)">'+TJ.icon('search','ico-sm')+'</span>'+
+        '<input class="input" id="q" placeholder="Search by name, description or lot…" style="padding-left:40px" value="'+esc(query)+'">'+
+      '</div>'+
+    '</div>'+
+    '<div class="chips" id="chips">'+chips+'</div>'+
+
+    '<div class="panel" id="tableWrap"><div class="tbl-wrap"><table>'+
+      '<thead><tr><th>Item</th><th>Domain</th><th>On hand</th><th>Par</th><th>Status</th><th>Days cover</th><th>Next expiry</th><th>Value</th><th>Actions</th></tr></thead>'+
+      '<tbody id="rows">'+rowsHTML()+'</tbody>'+
+    '</table></div></div>'+
+
+    '<div class="sec-title">'+TJ.icon('layers','ico-sm')+'How every number is calculated</div>'+
+    '<div class="panel pad"><div class="formulas">'+formulas+'</div></div>';
+
+  var content=document.getElementById('content');
+  content.innerHTML=html;
+
+  // wire interactions
+  document.getElementById('addBtn').onclick=openAdd;
+  document.getElementById('resetBtn').onclick=confirmReset;
+
+  var q=document.getElementById('q');
+  q.oninput=function(){ query=q.value; document.getElementById('rows').innerHTML=rowsHTML(); };
+
+  TJ.qsa('#chips .chip').forEach(function(c){
+    c.onclick=function(){
+      domFilter=c.getAttribute('data-dom');
+      TJ.qsa('#chips .chip').forEach(function(x){ x.classList.toggle('on', x===c); });
+      document.getElementById('rows').innerHTML=rowsHTML();
+    };
+  });
+}
+
+TJ.mount({active:'stock', onReady:render});
+STORE.on(render);
 </script>
 </body>
 </html>

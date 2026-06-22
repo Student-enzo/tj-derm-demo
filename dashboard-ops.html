@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Dashboard · operations view · TJ DERM</title>
+<title>Medical-assistant console · Dermatology &amp; Skin Cancer Center</title>
 <link rel="icon" href="assets/img/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
@@ -16,102 +16,163 @@
   <div class="backdrop" onclick="TJ.toggleNav()"></div>
   <div class="main">
     <header class="topbar" id="topbar"></header>
-    <div class="content">
-
-      <div class="page-head">
-        <div class="eyebrow">Operations view</div>
-        <h2>Everything needing a hand, in one list</h2>
-        <p>The dense, action-first view for the front desk. One worklist across every domain — low stock, expiries, draft POs and LN2 — each row cleared with a single tap.</p>
-      </div>
-
-      <!-- KPI STRIP -->
-      <div class="grid g4">
-        <div class="panel pad" style="display:flex;align-items:center;gap:12px">
-          <div class="ic" id="k1" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--warn-bg);color:var(--warn-ink);flex:none"></div>
-          <div><div class="big" style="font-size:22px;font-weight:800;letter-spacing:-.4px" id="kReorderN">3</div><div class="tiny">reorders pending</div></div>
-        </div>
-        <div class="panel pad" style="display:flex;align-items:center;gap:12px">
-          <div class="ic" id="k2" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--bad-bg);color:var(--bad-ink);flex:none"></div>
-          <div><div class="big" style="font-size:22px;font-weight:800;letter-spacing:-.4px" id="kExpN">5</div><div class="tiny">items expiring ≤30d</div></div>
-        </div>
-        <div class="panel pad" style="display:flex;align-items:center;gap:12px">
-          <div class="ic" id="k3" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--bad-bg);color:var(--bad-ink);flex:none"></div>
-          <div><div class="big" style="font-size:22px;font-weight:800;letter-spacing:-.4px">LN2 38%</div><div class="tiny">~9 days left</div></div>
-        </div>
-        <div class="panel pad" style="display:flex;align-items:center;gap:12px">
-          <div class="ic" id="k4" style="width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:var(--warn-bg);color:var(--warn-ink);flex:none"></div>
-          <div><div class="big" style="font-size:22px;font-weight:800;letter-spacing:-.4px">2</div><div class="tiny">low-stock domains</div></div>
-        </div>
-      </div>
-
-      <!-- ACTION WORKLIST -->
-      <div class="panel" style="margin-top:16px">
-        <div class="p-head"><strong>Action worklist</strong><span class="pill warn" id="openCount" style="margin-left:auto"></span></div>
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr><th>Item</th><th>Issue</th><th>Domain</th><th>Detail</th><th style="text-align:right">Action</th></tr></thead>
-            <tbody id="wlBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="note" id="note"></div>
-
-    </div>
+    <div class="content" id="ma"></div>
   </div>
 </div>
 
+<script src="assets/js/store.js"></script>
+<script src="assets/js/inventory.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
-TJ.mount({active:'dashboard-ops', onReady:init});
+TJ.mount({active:'dashboard-ops', onReady:render});
+STORE.on(render);
 
-// Canonical sample data — same source as the doctor dashboard, surfaced as one worklist.
-var WORK=[
-  {id:'w-lido', item:'Lidocaine 1% 20mL', sub:'lot LD-7741', issue:'Low stock', sev:'bad',  domain:'Surgical', detail:'6 left · below par · Henry Schein', act:'Draft PO', done:'PO drafted · Henry Schein'},
-  {id:'w-cur',  item:'Curettes (sterile)', sub:'lot CR-2231', issue:'Expiring',  sev:'bad',  domain:'Surgical', detail:'expires in 6 days', act:'Pull lot', done:'Lot flagged for pull'},
-  {id:'w-ln2',  item:'Liquid nitrogen',    sub:'cryo tank',   issue:'LN2 low',   sev:'bad',  domain:'LN2',      detail:'38% · ~9 days left · Airgas', act:'Order refill', done:'Refill ordered · Airgas'},
-  {id:'w-form', item:'Formalin 10%',        sub:'lot FM-0455', issue:'Expiring',  sev:'warn', domain:'Lab',      detail:'expires in 21 days', act:'Draft PO', done:'PO drafted · McKesson'},
-  {id:'w-he',   item:'H&E stain kit',       sub:'reagent set', issue:'Low stock', sev:'warn', domain:'Lab',      detail:'1 kit left · below par · McKesson', act:'Draft PO', done:'PO drafted · McKesson'},
-  {id:'w-alcl', item:'Aluminum chloride 20%',sub:'lot AC-0912',issue:'Expiring',  sev:'warn', domain:'Topical',  detail:'expires in 24 days', act:'Pull lot', done:'Lot flagged for pull'}
+/* ---------- the standard case kit (point-of-care deduction) ---------- */
+var KIT=[
+  {id:'i-lido', qty:1}, {id:'i-gauze', qty:4}, {id:'i-cur', qty:1},
+  {id:'i-nylon', qty:1}, {id:'i-alcl', qty:1}
 ];
 
-function init(){
-  document.getElementById('k1').innerHTML=TJ.icon('truck');
-  document.getElementById('k2').innerHTML=TJ.icon('clock');
-  document.getElementById('k3').innerHTML=TJ.icon('snow');
-  document.getElementById('k4').innerHTML=TJ.icon('box');
-  document.getElementById('note').innerHTML=TJ.icon('list')+'<div><strong>The dense alternative.</strong> Same data as the doctor’s glance dashboard — but flattened into one worklist so the front desk can clear everything in a single pass. The doctor sees colour and taps Approve; the office manager works the queue here.</div>';
-  renderWork();
+function logMohsCase(){
+  KIT.forEach(function(k){ if(STORE.item(k.id)) STORE.useStock({itemId:k.id, qty:k.qty}); });
+  TJ.toast('Mohs case logged · kit deducted (FEFO)');
 }
 
-function renderWork(){
-  var body=document.getElementById('wlBody'), open=0, html='';
-  WORK.forEach(function(r){
-    var done=TJ.state.ops && TJ.state.ops[r.id]==='done';
-    if(!done) open++;
-    html+='<tr'+(done?' class="done" style="opacity:.5"':'')+' data-id="'+r.id+'">'+
-      '<td><div class="it-name">'+r.item+'</div><div class="it-sub">'+r.sub+'</div></td>'+
-      '<td><span class="pill '+r.sev+'">'+r.issue+'</span></td>'+
-      '<td class="muted">'+r.domain+'</td>'+
-      '<td class="muted" style="font-size:12.5px">'+r.detail+'</td>'+
-      '<td style="text-align:right">'+
-        (done
-          ? '<span class="pill ok">'+TJ.icon('check','ico-sm')+'Handled</span>'
-          : '<button class="btn primary sm" onclick="handle(\''+r.id+'\')">'+r.act+'</button>')+
-      '</td></tr>';
+function receiveDelivery(){ location.href='receive-scan.html'; }
+
+function quickUse(){
+  var opts=STORE.data().items.filter(function(i){return !i.tank;})
+    .map(function(i){return {value:i.id, label:i.name};});
+  TJ.modal({
+    title:'Quick use', sub:'Log a single item used at the point of care',
+    fields:[
+      {name:'itemId', label:'Item', type:'select', options:opts, value:opts[0]&&opts[0].value},
+      {name:'qty', label:'Quantity used', type:'number', value:1}
+    ],
+    submitLabel:'Log use',
+    onSubmit:function(v){
+      var q=+v.qty||0; if(q<=0) return false;
+      var it=STORE.item(v.itemId);
+      STORE.useStock({itemId:v.itemId, qty:q});
+      TJ.toast('Used '+q+' × '+(it?it.name:'item'));
+    }
   });
-  body.innerHTML=html;
-  document.getElementById('openCount').innerHTML=open?open+' open':'all clear';
-  document.getElementById('openCount').className='pill '+(open?'warn':'ok');
-  document.getElementById('openCount').style.marginLeft='auto';
 }
 
-function handle(id){
-  if(!TJ.state.ops) TJ.state.ops={};
-  TJ.state.ops[id]='done'; TJ.save();
-  var r=WORK.filter(function(x){return x.id===id;})[0];
-  renderWork();
-  TJ.toast((r?r.done:'Handled')+' · logged to audit trail');
+/* ---------- relative time ---------- */
+function ago(ts){
+  var s=Math.max(0, Math.floor((Date.now()-ts)/1000));
+  if(s<60) return s+'s ago';
+  var m=Math.floor(s/60); if(m<60) return m+'m ago';
+  var h=Math.floor(m/60); if(h<24) return h+'h ago';
+  return Math.floor(h/24)+'d ago';
+}
+
+function actionPill(action){
+  var a=(action||'').toLowerCase(), cls='neutral';
+  if(a.indexOf('receiv')>-1) cls='ok';
+  else if(a.indexOf('po')>-1) cls='ok';
+  else if(a.indexOf('alert')>-1) cls='bad';
+  else if(a.indexOf('adjust')>-1) cls='warn';
+  else if(a.indexOf('use')>-1||a.indexOf('dispens')>-1) cls='neutral';
+  return '<span class="pill '+cls+'">'+action+'</span>';
+}
+
+/* ---------- big action card ---------- */
+function bigCard(icon, title, sub, onclick){
+  return '<div class="panel pad" onclick="'+onclick+'" role="button" tabindex="0" '+
+    'style="cursor:pointer;display:flex;flex-direction:column;gap:13px;min-height:148px">'+
+    '<div style="width:54px;height:54px;border-radius:16px;display:grid;place-items:center;'+
+      'background:var(--accent-soft);color:var(--accent)">'+TJ.icon(icon,'ico-lg')+'</div>'+
+    '<div>'+
+      '<div style="font-size:18px;font-weight:800;letter-spacing:-.3px">'+title+'</div>'+
+      '<div class="tiny" style="margin-top:4px;text-transform:none;letter-spacing:0;color:var(--ink-2)">'+sub+'</div>'+
+    '</div></div>';
+}
+
+function render(){
+  var k=INV.kpis();
+
+  /* needs attention: reorders (red) + expiring ≤7 (red/yellow) */
+  var reorder=INV.reorderList();
+  var expiring=INV.expiringList(7);
+  var attn='';
+  reorder.forEach(function(r){
+    attn+='<div class="lrow">'+
+      '<div class="ic">'+TJ.icon('truck')+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div class="t">'+r.it.name+'</div>'+
+        '<div class="d"><span class="pill bad" style="margin-right:8px">Reorder</span>'+
+          INV.onHand(r.it)+' on hand · suggest '+r.qty+' '+(r.it.unit||'')+' · '+(r.vendor||'')+'</div>'+
+      '</div>'+
+      '<button class="btn primary sm" onclick="orderItem(\''+r.it.id+'\')">Order</button>'+
+      '</div>';
+  });
+  expiring.forEach(function(e){
+    var sev=e.bucket; // 'bad' or 'warn'
+    attn+='<div class="lrow">'+
+      '<div class="ic">'+TJ.icon('clock')+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div class="t">'+e.it.name+'</div>'+
+        '<div class="d"><span class="pill '+sev+'" style="margin-right:8px">Expiring</span>'+
+          'lot '+e.lot.lot+' · '+(e.days<=0?'expired':e.days+'d left')+'</div>'+
+      '</div>'+
+      '<button class="btn sm" onclick="useItem(\''+e.it.id+'\')">Use</button>'+
+      '</div>';
+  });
+  if(!attn) attn='<div class="lrow"><div class="ic">'+TJ.icon('check')+'</div>'+
+    '<div style="flex:1"><div class="t">Nothing urgent — nice.</div>'+
+    '<div class="d">No reorders due and nothing expiring this week.</div></div></div>';
+
+  /* today's activity: 6 newest */
+  var audit=STORE.data().audit.slice(0,6);
+  var act=audit.map(function(a){
+    return '<div class="lrow">'+
+      '<div style="flex:none">'+actionPill(a.action)+'</div>'+
+      '<div style="flex:1;min-width:0"><div class="t" style="font-weight:600;font-size:13.5px">'+a.detail+'</div>'+
+        '<div class="d">'+(a.user||'')+'</div></div>'+
+      '<div class="cost" style="font-size:12.5px;font-weight:700;color:var(--ink-3)">'+ago(a.ts)+'</div>'+
+      '</div>';
+  }).join('') || '<div class="lrow"><div class="t">No activity yet today.</div></div>';
+
+  document.getElementById('ma').innerHTML=
+    '<div class="page-head">'+
+      '<div class="eyebrow">Supply room</div>'+
+      '<h2>Hi Jess — quick actions</h2>'+
+      '<p>Log a case, receive a delivery, or fix a count. One tap.</p>'+
+    '</div>'+
+
+    '<div class="grid g4">'+
+      '<div class="panel kpi"><div class="v">'+k.items+'</div><div class="l">Items</div></div>'+
+      '<div class="panel kpi"><div class="v">'+k.reorder+'</div><div class="l">To reorder</div></div>'+
+      '<div class="panel kpi"><div class="v">'+k.expiring+'</div><div class="l">Expiring ≤30</div></div>'+
+      '<div class="panel kpi"><div class="v">'+TJ.money(k.value)+'</div><div class="l">Value</div></div>'+
+    '</div>'+
+
+    '<div class="sec-title">'+TJ.icon('zap','ico-sm')+'Quick actions</div>'+
+    '<div class="grid g3">'+
+      bigCard('scissors','Log a Mohs case','Deducts the consumable kit in one tap','logMohsCase()')+
+      bigCard('truck','Receive a delivery','Scan the box — lot &amp; expiry auto-fill','receiveDelivery()')+
+      bigCard('box','Quick use','Log a single item used','quickUse()')+
+    '</div>'+
+
+    '<div class="sec-title">'+TJ.icon('alert','ico-sm')+'Needs attention</div>'+
+    '<div class="panel">'+attn+'</div>'+
+
+    '<div class="sec-title">'+TJ.icon('clock','ico-sm')+'Today’s activity</div>'+
+    '<div class="panel">'+act+'</div>';
+}
+
+/* needs-attention one-tap handlers */
+function orderItem(id){
+  STORE.sendPO({itemId:id, qty:INV.suggestedQty(STORE.item(id))});
+  var it=STORE.item(id);
+  TJ.toast('Order sent · '+(it?it.name:'item'));
+}
+function useItem(id){
+  STORE.useStock({itemId:id, qty:1});
+  var it=STORE.item(id);
+  TJ.toast('Used 1 × '+(it?it.name:'item'));
 }
 </script>
 </body>

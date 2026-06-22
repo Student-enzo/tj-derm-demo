@@ -103,6 +103,8 @@
   </div>
 </div>
 
+<script src="assets/js/store.js"></script>
+<script src="assets/js/inventory.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
 TJ.mount({active:'receive-guided', onReady:init});
@@ -147,9 +149,19 @@ function next(){
 }
 function back(){ if(step>1 && step<4) go(step-1); }
 
+function expToDays(s){ if(!s) return 365; var d=new Date(s); if(isNaN(d)) return 365; return Math.round((d-new Date())/86400000); }
+function findItem(typed){ var t=typed.toLowerCase(); return STORE.data().items.find(function(i){ var n=i.name.toLowerCase(); return n.indexOf(t)>=0 || t.indexOf(n)>=0; }); }
 function confirmReceive(){
-  var p=val('f_prod'), q=val('f_qty');
-  TJ.state.received.push({p:p,q:q,at:Date.now()}); TJ.save();
+  var p=val('f_prod'), q=val('f_qty'), lot=val('f_lot'), exp=val('f_exp');
+  var qty=Number(q)||0, expDays=expToDays(exp), itemId;
+  if(scanned || /lidocaine/i.test(p)){ itemId='i-lido'; }
+  else { var m=findItem(p); if(m) itemId=m.id; }
+  if(itemId){
+    STORE.receive({itemId:itemId, qty:qty, lot:lot, expDays:expDays});
+  } else {
+    STORE.addItem({name:p, domain:'Surgical', qty:qty, lot:lot, expDays:expDays,
+      par:Math.max(2,Math.ceil(qty/2)), reorderPoint:Math.ceil(qty/4), unitCost:0, usagePerWeek:0});
+  }
   document.getElementById('summary').innerHTML=
     sumRow('Product',p)+sumRow('Lot #',val('f_lot'))+sumRow('Expiry',val('f_exp'))+
     sumRow('Quantity',q)+sumRow('Location',val('f_loc'));

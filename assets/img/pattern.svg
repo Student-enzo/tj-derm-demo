@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+  <!-- dermal-ridge / contour motif: flowing skin-layer lines (derm analog of AYC level-curves). Tinted + faded by CSS mask. -->
+  <g fill="none" stroke="#000" stroke-width="2" stroke-linecap="round">
+    <path d="M0 30 q 37.5 -16 75 0 t 75 0 t 75 0 t 75 0"/>
+    <path d="M0 68 q 37.5 16 75 0 t 75 0 t 75 0 t 75 0"/>
+    <path d="M0 106 q 37.5 -16 75 0 t 75 0 t 75 0 t 75 0"/>
+    <path d="M0 144 q 37.5 16 75 0 t 75 0 t 75 0 t 75 0"/>
+    <path d="M0 182 q 37.5 -16 75 0 t 75 0 t 75 0 t 75 0"/>
+    <path d="M0 220 q 37.5 16 75 0 t 75 0 t 75 0 t 75 0"/>
+    <path d="M0 258 q 37.5 -16 75 0 t 75 0 t 75 0 t 75 0"/>
+    <path d="M0 296 q 37.5 16 75 0 t 75 0 t 75 0 t 75 0"/>
+  </g>
+</svg>

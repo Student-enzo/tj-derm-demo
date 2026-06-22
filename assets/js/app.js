@@ -50,20 +50,21 @@
 
   /* ---------- NAV ---------- */
   var NAV=[
-    {sec:'Operations'},
-    {id:'dashboard', label:'Dashboard',  icon:'dashboard', href:'dashboard.html'},
+    {sec:'By role'},
+    {id:'dashboard', label:'Doctor glance',  icon:'stetho', href:'dashboard.html'},
+    {id:'dashboard-ops', label:'MA console', icon:'scan', href:'dashboard-ops.html'},
+    {id:'auth',      label:'Front desk · Prior Auth', icon:'shield', href:'prior-auth.html', badge:3},
+    {sec:'Inventory'},
     {id:'stock',     label:'Stock',      icon:'box',       href:'stock.html'},
     {id:'receive',   label:'Receive',    icon:'scan',      href:'receive-scan.html'},
     {id:'alerts',    label:'Alerts & Reorder', icon:'bell', href:'alerts.html', badge:5},
-    {id:'auth',      label:'Prior Authorization', icon:'shield', href:'prior-auth.html', badge:3},
-    {sec:'Design concepts'},
-    {id:'dashboard-ops', label:'Dashboard · ops view', icon:'list', href:'dashboard-ops.html', alt:true},
+    {sec:'More receive concepts'},
     {id:'receive-grid',  label:'Receive · fast grid', icon:'keyboard', href:'receive-grid.html', alt:true},
     {id:'receive-guided',label:'Receive · guided',    icon:'sparkles', href:'receive-guided.html', alt:true}
   ];
-  var TITLES={dashboard:'Dashboard','dashboard-ops':'Dashboard · operations view',stock:'Stock on hand',
+  var TITLES={dashboard:"Doctor's glance",'dashboard-ops':'Medical-assistant console',stock:'Stock on hand',
     receive:'Receive a shipment','receive-grid':'Receive · fast grid','receive-guided':'Receive · guided',
-    alerts:'Alerts & reorder',auth:'Insurance prior-authorization'};
+    alerts:'Alerts & reorder',auth:'Prior-authorization queue'};
 
   var PEOPLE={ doctor:{av:'TG',nm:'Dr. Giuffrida',rl:'Owner · review & approve'},
                staff:{av:'JS',nm:'Jess · front desk',rl:'Staff · full access'} };
@@ -83,8 +84,8 @@
     }).join('');
     var side=document.getElementById('sidebar');
     if(side) side.innerHTML=
-      '<div class="s-brand"><img class="logo" src="assets/img/logo.svg" alt="TJ DERM"/>'+
-      '<span class="wm"><b>TJ&nbsp;DERM</b><span>Inventory &amp; Auth</span></span></div>'+
+      '<div class="s-brand"><img class="logo" src="assets/img/logo.svg" alt=""/>'+
+      '<span class="wm"><b>Dermatology &amp;<br>Skin&nbsp;Cancer&nbsp;Center</b><span>Inventory &amp; Auth</span></span></div>'+
       '<nav>'+nav+'</nav>'+
       '<div class="s-foot">Prototype · sample, de-identified data<br>Coral Gables, FL · HIPAA / CLIA</div>';
 
@@ -131,6 +132,39 @@
 
   function qs(s,r){return (r||document).querySelector(s);} function qsa(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));}
 
+  /* ---------- money + modal/form helper ---------- */
+  function money(n){ n=Math.round((+n||0)*100)/100; return '$'+n.toLocaleString('en-US',{minimumFractionDigits:(n%1?2:0),maximumFractionDigits:2}); }
+  var _modal;
+  function modal(o){
+    closeModal();
+    _modal=document.createElement('div'); _modal.className='modal-wrap';
+    var body=(o.fields||[]).map(function(f){
+      var ip;
+      if(f.type==='select'){ ip='<select name="'+f.name+'">'+(f.options||[]).map(function(op){var v=(op&&op.value!=null?op.value:op),l=(op&&op.label!=null?op.label:op);return '<option value="'+v+'"'+(String(v)===String(f.value)?' selected':'')+'>'+l+'</option>';}).join('')+'</select>'; }
+      else if(f.type==='static'){ ip='<div class="input" style="background:var(--panel-3);border-style:dashed">'+(f.value||'')+'</div>'; }
+      else { ip='<input name="'+f.name+'" type="'+(f.type||'text')+'" value="'+(f.value!=null?f.value:'')+'" placeholder="'+(f.placeholder||'')+'"'+((f.type==='number')?' inputmode="decimal"':'')+'>'; }
+      return '<div class="field" style="margin-bottom:13px"><label>'+f.label+(f.hint?' <span class="tiny" style="text-transform:none;letter-spacing:0">'+f.hint+'</span>':'')+'</label>'+ip+'</div>';
+    }).join('');
+    _modal.innerHTML='<div class="modal-bd"></div><div class="modal" role="dialog" aria-modal="true">'+
+      '<div class="modal-h"><strong>'+o.title+'</strong>'+(o.sub?'<div class="tiny" style="margin-top:3px">'+o.sub+'</div>':'')+
+      '<button class="modal-x" aria-label="Close">'+icon('x','ico-sm')+'</button></div>'+
+      '<form class="modal-b" id="tjform" onsubmit="return false">'+body+'</form>'+
+      '<div class="modal-f"><button class="btn ghost" type="button" data-x>Cancel</button>'+
+      '<button class="btn primary" type="button" id="tjok">'+(o.submitLabel||'Save')+'</button></div></div>';
+    document.body.appendChild(_modal);
+    _modal.querySelector('.modal-bd').onclick=closeModal;
+    _modal.querySelector('.modal-x').onclick=closeModal;
+    _modal.querySelector('[data-x]').onclick=closeModal;
+    _modal.querySelector('#tjok').onclick=function(){
+      var out={}; qsa('#tjform [name]',_modal).forEach(function(el){ out[el.name]=el.value; });
+      if(o.onSubmit && o.onSubmit(out)===false) return;
+      closeModal();
+    };
+    setTimeout(function(){ var fi=_modal.querySelector('input,select'); if(fi) fi.focus(); },30);
+  }
+  function closeModal(){ if(_modal){ _modal.remove(); _modal=null; } }
+
   w.TJ={ icon:icon, mount:mount, setTheme:setTheme, setRole:setRole, toggleNav:toggleNav,
-         toast:toast, state:state, save:save, qs:qs, qsa:qsa };
+         toast:toast, state:state, save:save, qs:qs, qsa:qsa,
+         money:money, modal:modal, closeModal:closeModal };
 })(window);

@@ -196,3 +196,31 @@ tbody tr:last-child td{border-bottom:none} tbody tr:hover{background:var(--panel
   .seg.role button span.lbl{display:none}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------------- BRAND WORDMARK (matches practice logo: bold uppercase) ---------------- */
+.s-brand .wm b{font-family:var(--font-ui);font-size:12px;font-weight:800;letter-spacing:.045em;line-height:1.2;text-transform:uppercase}
+.s-brand .wm span{font-size:9.5px;letter-spacing:.2em;margin-top:6px}
+
+/* ---------------- DERMAL-RIDGE BACKGROUND (derm analog of AYC level-curves) ---------------- */
+body{position:relative}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background-color:var(--ink);opacity:.045;
+  -webkit-mask:url('../img/pattern.svg') 0 0 / 300px repeat; mask:url('../img/pattern.svg') 0 0 / 300px repeat}
+.app,.hub{position:relative;z-index:1}
+
+/* ---------------- MODAL / FORMS (for add / receive / use / adjust) ---------------- */
+.modal-wrap{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:18px}
+.modal-bd{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+.modal{position:relative;background:var(--panel);border-radius:var(--r-lg);box-shadow:var(--ring-1),0 24px 60px rgba(0,0,0,.45);
+  width:100%;max-width:440px;max-height:90vh;display:flex;flex-direction:column;animation:pop .18s var(--ease)}
+@keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.modal-h{padding:18px 18px 13px;border-bottom:1px solid var(--line);position:relative}
+.modal-h strong{font-size:16px;font-weight:800}
+.modal-x{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--ink-3);border:1px solid var(--line);background:var(--panel-2)}
+.modal-b{padding:18px;overflow:auto}
+.modal-f{padding:14px 18px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;background:var(--panel-2);border-radius:0 0 var(--r-lg) var(--r-lg)}
+.kpi{display:flex;flex-direction:column;gap:3px;padding:15px 16px}
+.kpi .v{font-size:24px;font-weight:800;letter-spacing:-.5px} .kpi .l{font-size:12px;color:var(--ink-2);font-weight:600}
+.formulas{display:grid;grid-template-columns:1fr 1fr;gap:2px 22px}
+.formulas .fr{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.formulas .fr b{font-weight:700;white-space:nowrap} .formulas .fr span{color:var(--ink-2);text-align:right}
+@media(max-width:760px){.formulas{grid-template-columns:1fr}}

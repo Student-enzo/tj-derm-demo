@@ -53,6 +53,8 @@
   </div>
 </div>
 
+<script src="assets/js/store.js"></script>
+<script src="assets/js/inventory.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
 TJ.mount({active:'receive-grid', onReady:init});
@@ -103,18 +105,30 @@ function recount(){
   document.getElementById('total').textContent=rows.length+' item'+(rows.length===1?'':'s')+' · '+units+' unit'+(units===1?'':'s');
 }
 
+var DOMMAP={'Surgical':'Surgical','Lab Reagent':'Lab','Liquid Nitrogen':'LN2','Topical':'Topical'};
+function expToDays(s){ if(!s) return 365; var d=new Date(s); if(isNaN(d)) return 365; return Math.round((d-new Date())/86400000); }
+function findItem(typed){ var t=typed.toLowerCase(); return STORE.data().items.find(function(i){ var n=i.name.toLowerCase(); return n.indexOf(t)>=0 || t.indexOf(n)>=0; }); }
 function receiveAll(){
   var rows=TJ.qsa('#rows tr'), added=0;
   if(!rows.length){ TJ.toast('Add a row first', false); return; }
   rows.forEach(function(tr){
     var ins=tr.querySelectorAll('input'),
-        p=ins[0].value.trim(), q=(tr.querySelector('.qty').value||'').trim();
+        p=ins[0].value.trim(),
+        dom=tr.querySelector('select').value,
+        lot=ins[1].value.trim(), exp=ins[2].value.trim(),
+        q=parseInt((tr.querySelector('.qty').value||'').trim(),10)||0;
     if(!p) return;
-    TJ.state.received.push({p:p,q:q,at:Date.now()}); added++;
+    var expDays=expToDays(exp), m=findItem(p);
+    if(m){
+      STORE.receive({itemId:m.id, qty:q, lot:lot, expDays:expDays});
+    } else {
+      STORE.addItem({name:p, domain:DOMMAP[dom]||'Surgical', qty:q, lot:lot, expDays:expDays,
+        par:Math.max(2,Math.ceil(q/2)), reorderPoint:Math.ceil(q/4), unitCost:0, usagePerWeek:0});
+    }
+    added++;
   });
   if(!added){ TJ.toast('Enter a product name first', false); return; }
-  TJ.save();
-  TJ.toast(added+' line'+(added===1?'':'s')+' received · FEFO lots recorded');
+  TJ.toast(added+' item'+(added===1?'':'s')+' received');
   document.getElementById('rows').innerHTML='';
   addRow(); recount();
 }

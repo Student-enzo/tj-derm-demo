@@ -19,121 +19,154 @@
     <div class="content">
 
       <div class="page-head">
-        <div class="eyebrow" id="eyebrow">Tuesday · 8:14 AM</div>
-        <h2 id="greet">Good morning, Dr. Giuffrida</h2>
-        <p>Everything that needs you, on one screen — no data entry, no navigation.</p>
+        <div class="eyebrow">Tuesday · 8:14 AM</div>
+        <h2>Good morning, Dr. Giuffrida</h2>
+        <p>Everything that needs you, on one screen.</p>
       </div>
 
-      <!-- STATUS TILES -->
-      <div class="grid g4">
-        <div class="panel tile ok"><div class="bar"></div><div class="body">
-          <div class="ic" id="i1"></div><div class="dn">Surgical</div><div class="big">142</div>
-          <div class="st"><span class="dot ok"></span>Healthy</div></div></div>
-        <div class="panel tile warn"><div class="bar"></div><div class="body">
-          <div class="ic" id="i2"></div><div class="dn">Lab Reagents</div><div class="big">2 low</div>
-          <div class="st"><span class="dot warn"></span>Watch</div></div></div>
-        <div class="panel tile bad"><div class="bar"></div><div class="body">
-          <div class="ic" id="i3"></div><div class="dn">Liquid Nitrogen</div><div class="big">38%</div>
-          <div class="st"><span class="dot bad"></span>Reorder now</div></div></div>
-        <div class="panel tile ok"><div class="bar"></div><div class="body">
-          <div class="ic" id="i4"></div><div class="dn">Topicals</div><div class="big">67</div>
-          <div class="st"><span class="dot ok"></span>Healthy</div></div></div>
-      </div>
+      <!-- HERO: computed live -->
+      <div id="hero"></div>
 
-      <!-- APPROVALS + GAUGE -->
-      <div class="row stretch" style="margin-top:16px">
-        <div class="panel" style="flex:2;min-width:320px">
-          <div class="p-head"><strong>Pending approvals</strong><span class="pill warn" id="apprCount" style="margin-left:auto"></span></div>
-          <div id="apprList"></div>
-        </div>
-        <div class="panel" style="flex:1;min-width:250px">
-          <div class="p-head"><strong>Liquid nitrogen</strong></div>
-          <div class="pad" style="display:flex;gap:18px;align-items:center">
-            <div class="gauge" style="--p:38"><b>38%</b></div>
-            <div>
-              <div class="tiny">Estimated level</div>
-              <div style="font-weight:800;font-size:16px;margin:2px 0 8px">~9 days left</div>
-              <div class="tiny">Boil-off 1.8%/day · verified Mon</div>
-              <span class="pill bad" style="margin-top:10px" id="ln2pill"></span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- 4-DOMAIN TRAFFIC-LIGHT TILES -->
+      <div class="grid g4" id="tiles" style="margin-top:16px"></div>
 
-      <!-- EXPIRY -->
-      <div class="sec-title" id="expTitle"></div>
-      <div class="panel pad" style="display:flex;flex-direction:column;gap:0" id="expList"></div>
+      <!-- LN2 GAUGE -->
+      <div class="panel" style="margin-top:16px" id="ln2panel"></div>
 
-      <div class="note" id="note"></div>
+      <!-- FOOTER -->
+      <div class="note" id="note" style="margin-top:16px"></div>
 
     </div>
   </div>
 </div>
 
+<script src="assets/js/store.js"></script>
+<script src="assets/js/inventory.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
 TJ.mount({active:'dashboard', onReady:render});
 
-var APPROVALS=[
-  {id:'a-lido', icon:'droplet', t:'Reorder · Lidocaine 1% (20 mL vials)', d:'Henry Schein · suggested 24 units · below par (6 left)', cost:'$186'},
-  {id:'a-form', icon:'flask',   t:'Reorder · Formalin 10% (gallon)', d:'McKesson · suggested 6 units · lot expiring in 21 days', cost:'$94'},
-  {id:'a-ln2',  icon:'snow',    t:'Reorder · Liquid Nitrogen refill', d:'Airgas · tank at 38% · est. empty in 9 days', cost:'$210'}
-];
-var EXPIRY=[
-  {sev:'bad',  n:'Curettes (sterile)', d:'expires in 6 days · lot CR-2231', tag:'7-day'},
-  {sev:'warn', n:'Aluminum chloride 20%', d:'expires in 24 days · lot AC-0912', tag:'30-day'}
+var DOMAINS=[
+  {name:'Surgical', icon:'scissors'},
+  {name:'Lab',      icon:'flask'},
+  {name:'LN2',      icon:'snow'},
+  {name:'Topical',  icon:'droplet'}
 ];
 
-function render(state){
-  document.getElementById('i1').innerHTML=TJ.icon('scissors');
-  document.getElementById('i2').innerHTML=TJ.icon('flask');
-  document.getElementById('i3').innerHTML=TJ.icon('snow');
-  document.getElementById('i4').innerHTML=TJ.icon('droplet');
-  document.getElementById('ln2pill').innerHTML=TJ.icon('alert','ico-sm')+'Below reorder threshold';
-  document.getElementById('expTitle').innerHTML=TJ.icon('clock','ico-sm')+'Needs attention soon';
-  document.getElementById('note').innerHTML=TJ.icon('shield')+'<div><strong>Why this is his screen.</strong> The doctor never types — he sees colour, taps Approve, done. Toggle <em>Staff</em> (top-right) to see who does the work behind it, or switch the theme swatches to compare looks.</div>';
-  applyRole(state.role); renderAppr(); renderExp();
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+function approveReorder(id){
+  var r=INV.reorderList().filter(function(x){return x.it.id===id;})[0];
+  if(!r) return;
+  STORE.sendPO({itemId:id, qty:r.qty});
+  TJ.toast('PO sent — your team takes it from here');
 }
-function renderExp(){
-  document.getElementById('expList').innerHTML=EXPIRY.map(function(e,i){
-    var bb=(i<EXPIRY.length-1)?'border-bottom:1px solid var(--line)':'';
-    return '<div style="display:flex;align-items:center;gap:11px;padding:12px 0;'+bb+'">'+
-      '<span class="dot '+e.sev+'"></span><strong style="font-size:14px">'+e.n+'</strong>'+
-      '<span class="muted" style="font-size:13px">'+e.d+'</span>'+
-      '<span class="pill '+e.sev+'" style="margin-left:auto">'+e.tag+'</span></div>';
+
+function renderHero(){
+  var reorders=INV.reorderList();
+  var exp7=INV.expiringList(7);
+  var ln2=INV.ln2(STORE.item('i-ln2'));
+  var blockedPA=STORE.data().priorAuth.filter(function(p){return p.stage!=='Approved';});
+
+  if(reorders.length===0 && exp7.length===0 && ln2.status!=='bad' && blockedPA.length===0){
+    return '<div class="panel tile ok"><div class="bar"></div>'+
+      '<div class="pad-lg" style="display:flex;gap:18px;align-items:center">'+
+        '<div class="ic" style="width:56px;height:56px;border-radius:14px">'+TJ.icon('check','ico-lg')+'</div>'+
+        '<div><div style="font-size:21px;font-weight:800;letter-spacing:-.3px">Everything\'s stocked. Nothing\'s blocking your day.</div>'+
+        '<div class="muted" style="font-size:14px;margin-top:4px">Your team is on top of it.</div></div>'+
+      '</div></div>';
+  }
+
+  var rows=[];
+
+  reorders.forEach(function(r){
+    var it=r.it;
+    if(it.tank) return; // LN2 handled separately below
+    var sev=(INV.onHand(it)<=it.reorderPoint)?'bad':'warn';
+    rows.push('<div class="lrow" style="border-left:4px solid var('+(sev==='bad'?'--bad':'--warn')+')">'+
+      '<div class="ic" style="color:var('+(sev==='bad'?'--bad-ink':'--warn-ink')+')">'+TJ.icon('box')+'</div>'+
+      '<div><div class="t">'+esc(it.name)+' — only '+INV.onHand(it)+' left</div>'+
+      '<div class="d">'+esc(r.vendor||'')+' · suggested '+r.qty+' '+esc(it.unit)+'</div></div>'+
+      '<button class="btn primary sm" style="margin-left:auto" onclick="approveReorder(\''+esc(it.id)+'\')">Approve reorder</button>'+
+      '</div>');
+  });
+
+  if(ln2.status==='bad'){
+    rows.push('<div class="lrow" style="border-left:4px solid var(--bad)">'+
+      '<div class="ic" style="color:var(--bad-ink)">'+TJ.icon('snow')+'</div>'+
+      '<div><div class="t">Liquid nitrogen at '+Math.round(ln2.estPct)+'% — reorder needed</div>'+
+      '<div class="d">Airgas · ~'+ln2.daysToEmpty+' days to empty</div></div>'+
+      '<span class="pill bad" style="margin-left:auto">'+TJ.icon('alert','ico-sm')+'Below threshold</span>'+
+      '</div>');
+  }
+
+  blockedPA.forEach(function(p){
+    var sev=(p.stage==='Pending insurer')?'bad':'warn';
+    rows.push('<div class="lrow" style="border-left:4px solid var('+(sev==='bad'?'--bad':'--warn')+')">'+
+      '<div class="ic" style="color:var('+(sev==='bad'?'--bad-ink':'--warn-ink')+')">'+TJ.icon('shield')+'</div>'+
+      '<div><div class="t">Patient '+esc(p.pt)+'\'s '+esc(p.proc)+' is waiting on '+esc(p.ins)+'</div>'+
+      '<div class="d">Front desk is handling it · '+esc(p.stage)+'</div></div>'+
+      '<span class="pill '+sev+'" style="margin-left:auto">'+esc(p.stage)+'</span>'+
+      '</div>');
+  });
+
+  rows=rows.slice(0,5);
+
+  return '<div class="panel">'+
+    '<div class="p-head"><strong>Needs your eye</strong>'+
+      '<span class="pill warn" style="margin-left:auto">'+rows.length+' item'+(rows.length===1?'':'s')+'</span></div>'+
+    rows.join('')+
+    '</div>';
+}
+
+function renderTiles(){
+  var roll=INV.domainRollup();
+  return DOMAINS.map(function(d){
+    var r=roll[d.name]||{count:0,worst:'ok',value:0};
+    var label={ok:'Healthy',warn:'Watch',bad:'Reorder now'}[r.worst];
+    return '<div class="panel tile '+r.worst+'"><div class="bar"></div><div class="body">'+
+      '<div class="ic">'+TJ.icon(d.icon)+'</div>'+
+      '<div class="dn">'+esc(d.name)+'</div>'+
+      '<div class="big">'+TJ.money(r.value)+'</div>'+
+      '<div class="st"><span class="dot '+r.worst+'"></span>'+r.count+' item'+(r.count===1?'':'s')+' · '+label+'</div>'+
+    '</div></div>';
   }).join('');
 }
-function renderAppr(){
-  var st=TJ.state, list=document.getElementById('apprList'), shown=0, html='';
-  APPROVALS.forEach(function(a){
-    var s=st.approvals[a.id];
-    if(s==='dismissed') return;
-    shown++;
-    var done=s==='approved';
-    html+='<div class="lrow'+(done?' done':'')+'" data-id="'+a.id+'">'+
-      '<div class="ic">'+TJ.icon(a.icon)+'</div>'+
-      '<div><div class="t">'+a.t+'</div><div class="d">'+a.d+'</div></div>'+
-      '<div class="cost">'+a.cost+'</div>'+
-      (done
-        ? '<span class="pill ok">'+TJ.icon('check','ico-sm')+'Approved</span>'
-        : '<button class="btn ghost sm" onclick="act(\''+a.id+'\',\'dismiss\')">Dismiss</button>'+
-          '<button class="btn primary sm" onclick="act(\''+a.id+'\',\'approve\')">Approve</button>')+
+
+function renderLn2(){
+  var ln2=INV.ln2(STORE.item('i-ln2'));
+  var t=STORE.item('i-ln2').tank;
+  var pct=Math.round(ln2.estPct);
+  return '<div class="p-head"><strong>Liquid nitrogen</strong>'+
+      '<span class="pill '+ln2.status+'" style="margin-left:auto">'+
+        TJ.icon(ln2.status==='ok'?'check':'alert','ico-sm')+
+        (ln2.status==='bad'?'Below reorder':ln2.status==='warn'?'Reorder soon':'Healthy')+'</span></div>'+
+    '<div class="pad" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">'+
+      '<div class="gauge" style="--p:'+pct+'"><b>'+pct+'%</b></div>'+
+      '<div>'+
+        '<div class="tiny">Estimated level</div>'+
+        '<div style="font-weight:800;font-size:16px;margin:2px 0 8px">≈'+ln2.daysToEmpty+' days to empty</div>'+
+        '<div class="tiny">Boil-off '+t.boiloffPerDay+'%/day · '+ln2.liters+' L · reorder at '+t.reorderPct+'%</div>'+
+      '</div>'+
     '</div>';
-  });
-  list.innerHTML=html||'<div class="pad muted" style="text-align:center">All caught up — nothing waiting.</div>';
-  document.getElementById('apprCount').innerHTML=shown?shown+' waiting':'clear';
 }
-function act(id,kind){
-  TJ.state.approvals[id]=(kind==='approve')?'approved':'dismissed'; TJ.save();
-  renderAppr();
-  TJ.toast(kind==='approve'?'PO sent · logged to audit trail':'Dismissed');
+
+function renderNote(){
+  var k=INV.kpis();
+  return TJ.icon('stetho')+
+    '<div>You never type. Your team scans, counts and orders — you just see what needs a decision. '+
+    'Behind this screen: '+k.items+' items, '+TJ.money(k.value)+' on hand. '+
+    '<a href="dashboard-ops.html">See the team\'s console '+TJ.icon('arrow','ico-sm')+'</a></div>';
 }
-function applyRole(role){
-  var g=document.getElementById('greet'), e=document.getElementById('eyebrow');
-  if(role==='staff'){ g.textContent="Today's to-do, Jess"; e.textContent='Tuesday · staff console'; }
-  else { g.textContent='Good morning, Dr. Giuffrida'; e.textContent='Tuesday · 8:14 AM'; }
+
+function render(){
+  document.getElementById('hero').innerHTML=renderHero();
+  document.getElementById('tiles').innerHTML=renderTiles();
+  document.getElementById('ln2panel').innerHTML=renderLn2();
+  document.getElementById('note').innerHTML=renderNote();
 }
-document.addEventListener('tj:role',function(ev){ applyRole(ev.detail); });
+
+STORE.on(render);
 </script>
 </body>
 </html>

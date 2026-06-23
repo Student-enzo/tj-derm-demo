@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smart shopping list · Dermatology &amp; Skin Cancer Center</title>
+<link rel="icon" href="assets/img/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/app.css">
+<style>
+/* scoped polish for the email composer + shopping rows — page-local only */
+.shop-vhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.shop-vhead .vmeta{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+.shop-vhead .vright{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.shop-vcost{font-weight:800;font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap;margin-right:2px}
+.shop-row .why{font-size:12.5px;color:var(--ink-2);margin-top:3px}
+.shop-row .why b{color:var(--ink);font-weight:700}
+.mailbox{position:relative;background:var(--panel);border-radius:var(--r-lg);box-shadow:var(--ring-1),0 24px 60px rgba(0,0,0,.45);width:100%;max-width:620px;max-height:90vh;display:flex;flex-direction:column}
+.mailbox .mbh{padding:18px 18px 14px;border-bottom:1px solid var(--line);position:relative}
+.mailbox .mbh .to{font-size:12.5px;color:var(--ink-2);margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mailbox .mbh .to code{background:var(--panel-3);border-radius:6px;padding:2px 8px;font-size:12px;color:var(--ink)}
+.mailbox .subjbar{padding:13px 18px;border-bottom:1px solid var(--line);font-size:13.5px}
+.mailbox .subjbar .k{color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:10.5px;margin-bottom:4px}
+.mailbox .subjbar .v{font-weight:700}
+.mailbox .body{padding:16px 18px;overflow:auto;flex:1}
+.mailbox textarea{width:100%;min-height:300px;border:1px solid var(--line);border-radius:11px;padding:14px;font-family:inherit;font-size:13.5px;line-height:1.6;color:var(--ink);background:var(--panel-2);resize:vertical}
+.mailbox textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--ring)}
+.mailbox .mbf{padding:14px 18px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px;background:var(--panel-2);border-radius:0 0 var(--r-lg) var(--r-lg)}
+.mailbox .mbf .spacer{margin-left:auto}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="backdrop" onclick="TJ.toggleNav()"></div>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<script src="assets/js/store.js"></script>
+<script src="assets/js/inventory.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+"use strict";
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+/* ---------- "why" formatting: compact procedure-driver labels ---------- */
+var DRIVER_SHORT={
+  'Mohs surgery':'Mohs','Excision, malignant':'malignant exc.','Excision, benign':'benign exc.',
+  'Biopsy':'biopsy','Cryotherapy':'cryo'
+};
+function driverLabel(t){ return DRIVER_SHORT[t]||t; }
+function fmtDrivers(d){
+  var keys=Object.keys(d||{});
+  if(!keys.length) return 'booked schedule';
+  return keys.sort(function(a,b){ return d[b]-d[a]; })
+    .map(function(t){ return d[t]+' '+driverLabel(t); }).join(', ');
+}
+
+/* ---------- reason → pill ----------
+   Out/Schedule → bad ; JIC/Low/Cryo booked → warn ; default neutral */
+function reasonPill(r){
+  var cls='neutral', ic='alert';
+  if(r==='Out'||r==='Schedule'){ cls='bad'; ic=(r==='Out')?'alert':'calendar'; }
+  else if(r==='JIC'||r==='Low'||r==='Cryo booked'){ cls='warn'; ic=(r==='Cryo booked')?'snow':'alert'; }
+  else if(r==='LN2 low'){ cls='bad'; ic='snow'; }
+  return '<span class="pill '+cls+'">'+TJ.icon(ic,'ico-sm')+esc(r||'Restock')+'</span>';
+}
+function lineIcon(it){
+  if(it.tank) return 'snow';
+  if(it.domain==='Surgical') return 'scissors';
+  if(it.domain==='Lab') return 'droplet';
+  if(it.domain==='Topical') return 'droplet';
+  return 'box';
+}
+
+/* ============================================================
+   ACTIONS — order a line, order a whole group, draft the email
+   ============================================================ */
+function orderLine(vendorId, itemId, qty){
+  STORE.purchase({itemId:itemId, qty:+qty||0, user:'Jess'});
+  TJ.toast('Ordered');
+}
+function orderGroup(vendorId){
+  var g=groupById(vendorId);
+  if(!g) return;
+  var n=g.lines.length;
+  g.lines.forEach(function(r){ STORE.purchase({itemId:r.it.id, qty:r.qty, user:'Jess'}); });
+  TJ.toast('Order placed — '+n+' item'+(n===1?'':'s'));
+}
+function groupById(vendorId){
+  return INV.reorderByVendor().filter(function(x){ return x.vendorId===vendorId; })[0];
+}
+
+/* expose for inline handlers */
+window.shopOrderLine  = orderLine;
+window.shopOrderGroup = orderGroup;
+window.shopDraft      = openComposer;
+
+/* ============================================================
+   EMAIL COMPOSER — a polished, editable order-email overlay
+   ============================================================ */
+var _box;
+function closeComposer(){ if(_box){ _box.remove(); _box=null; } }
+window.shopCloseComposer = closeComposer;
+
+function openComposer(vendorId){
+  var g=groupById(vendorId);
+  var v=(STORE.vendor(vendorId)||{});
+  var d=TJ.draftVendorEmail(vendorId);
+
+  closeComposer();
+  _box=document.createElement('div'); _box.className='modal-wrap';
+  _box.innerHTML=''+
+    '<div class="modal-bd"></div>'+
+    '<div class="mailbox" role="dialog" aria-modal="true" aria-label="Order email">'+
+      '<div class="mbh">'+
+        '<strong style="font-size:16px;font-weight:800">'+TJ.icon('mail','ico-sm')+' New order email</strong>'+
+        '<div class="to">To <code>'+esc(v.email||'orders@vendor.com')+'</code>'+
+          '<span class="muted">· '+esc(v.name||'Vendor')+(v.acct?' · acct '+esc(v.acct):'')+'</span></div>'+
+        '<button class="modal-x" aria-label="Close" onclick="shopCloseComposer()">'+TJ.icon('x','ico-sm')+'</button>'+
+      '</div>'+
+      '<div class="subjbar"><div class="k">Subject</div><div class="v">'+esc(d.subject)+'</div></div>'+
+      '<div class="body">'+
+        '<textarea id="mailBody" spellcheck="false">'+esc(d.body)+'</textarea>'+
+        '<div class="note" style="margin-top:12px">'+TJ.icon('sparkles','ico-sm')+
+          '<span>'+(d.count||0)+' item'+((d.count===1)?'':'s')+' · '+TJ.money(d.total||0)+
+          ' · quantities are driven by your booked surgical schedule for the coming week.</span></div>'+
+      '</div>'+
+      '<div class="mbf">'+
+        '<button class="btn ghost" type="button" onclick="shopCloseComposer()">Cancel</button>'+
+        '<button class="btn ghost spacer" type="button" id="mailCopy">'+TJ.icon('file','ico-sm')+'Copy</button>'+
+        '<button class="btn primary" type="button" id="mailSend">'+TJ.icon('check','ico-sm')+'Mark ordered</button>'+
+      '</div>'+
+    '</div>';
+
+  document.body.appendChild(_box);
+  _box.querySelector('.modal-bd').onclick=closeComposer;
+
+  _box.querySelector('#mailCopy').onclick=function(){
+    var txt=_box.querySelector('#mailBody').value;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){ TJ.toast('Copied'); },function(){ fallbackCopy(txt); });
+    } else { fallbackCopy(txt); }
+  };
+  _box.querySelector('#mailSend').onclick=function(){
+    if(g){ g.lines.forEach(function(r){ STORE.purchase({itemId:r.it.id, qty:r.qty, user:'Jess'}); }); }
+    closeComposer();
+    TJ.toast('Order placed — '+((g&&g.lines.length)||0)+' item'+(((g&&g.lines.length)===1)?'':'s'));
+  };
+  setTimeout(function(){ if(!_box) return; var ta=_box.querySelector('#mailBody'); if(ta) ta.focus(); },30);
+}
+
+function fallbackCopy(txt){
+  try{
+    var ta=document.createElement('textarea'); ta.value=txt;
+    ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    TJ.toast('Copied');
+  }catch(e){ TJ.toast('Select the text to copy', false); }
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function kpiTile(v,l){
+  return '<div class="panel kpi"><span class="v">'+v+'</span><span class="l">'+l+'</span></div>';
+}
+
+function renderKpis(groups){
+  var total=0, lines=0;
+  groups.forEach(function(g){ total+=g.cost; lines+=g.lines.length; });
+  var load=INV.procedureLoad(7);
+  return '<div class="grid g4" style="margin-bottom:18px">'+
+    kpiTile(TJ.money(total),'To order')+
+    kpiTile(groups.length,'Supplier'+(groups.length===1?'':'s'))+
+    kpiTile(lines,'Line items')+
+    kpiTile((load.total||0)+' cases','Driven by')+
+  '</div>';
+}
+
+function lineRow(g, r){
+  var it=r.it, oh=INV.onHand(it), u=it.tank?'%':'';
+  var why='Buy '+r.qty+' '+esc(it.unit)+' · for <b>'+esc(fmtDrivers(r.drivers))+'</b>';
+  return '<div class="lrow shop-row">'+
+    '<div class="ic">'+TJ.icon(lineIcon(it))+'</div>'+
+    '<div style="min-width:0">'+
+      '<div class="t">'+esc(it.name)+' — only '+oh+u+' left</div>'+
+      '<div class="why">'+why+'</div>'+
+    '</div>'+
+    reasonPill(r.reason)+
+    '<div class="cost">'+TJ.money(r.cost)+'</div>'+
+    '<button class="btn ghost sm" style="margin-left:12px;flex:none" '+
+      'onclick="shopOrderLine(\''+esc(g.vendorId)+'\',\''+esc(it.id)+'\','+r.qty+')">Order</button>'+
+  '</div>';
+}
+
+function vendorPanel(g){
+  var v=g.vendor||{}, lead=(v.leadDays!=null?v.leadDays:3);
+  var head='<div class="p-head shop-vhead">'+
+    '<div>'+
+      '<strong style="font-size:15.5px">'+esc(v.name||'Misc supplier')+'</strong>'+
+      '<div class="vmeta">acct '+esc(v.acct||'—')+' · '+lead+'-day lead</div>'+
+    '</div>'+
+    '<div class="vright">'+
+      '<span class="shop-vcost">'+TJ.money(g.cost)+'</span>'+
+      '<button class="btn primary sm" onclick="shopDraft(\''+esc(g.vendorId)+'\')">'+TJ.icon('mail','ico-sm')+'Draft order email</button>'+
+      '<button class="btn ghost sm" onclick="shopOrderGroup(\''+esc(g.vendorId)+'\')">Order all</button>'+
+    '</div>'+
+  '</div>';
+  var rows=g.lines.map(function(r){ return lineRow(g, r); }).join('');
+  return '<div class="panel" style="margin-bottom:16px">'+head+rows+'</div>';
+}
+
+function emptyState(){
+  return '<div class="panel pad-lg" style="text-align:center;border-left:4px solid var(--ok-ink)">'+
+    '<div style="width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:var(--ok-bg);color:var(--ok-ink);margin:4px auto 12px">'+
+      TJ.icon('check','ico-lg')+'</div>'+
+    '<div style="font-weight:800;font-size:17px">Fully stocked for the booked schedule.</div>'+
+    '<div class="muted" style="margin-top:5px">Nothing to order right now.</div>'+
+  '</div>';
+}
+
+function render(){
+  var groups=INV.reorderByVendor();
+
+  var head='<div class="page-head">'+
+    '<div class="eyebrow">Smart shopping list</div>'+
+    '<h2>What to buy — and why</h2>'+
+    '<p>Built automatically from your booked surgery schedule and par levels. Grouped by supplier, ready to send.</p>'+
+  '</div>';
+
+  var body;
+  if(!groups.length){
+    body=emptyState();
+  } else {
+    body=renderKpis(groups)+groups.map(vendorPanel).join('');
+  }
+
+  document.getElementById('content').innerHTML=head+body;
+}
+
+TJ.mount({active:'shopping', onReady:render});
+STORE.on(render);
+</script>
+</body>
+</html>

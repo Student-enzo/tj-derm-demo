@@ -74,9 +74,34 @@
       {id:'p11',itemId:'i-ln2',qty:1,cost:210,daysAgo:47,domain:'LN2'},
       {id:'p12',itemId:'i-mup',qty:12,cost:107,daysAgo:52,domain:'Topical'}
     ];
+    // ── PROCEDURE KITS — bill of materials per case type (derm analog of AYC's
+    //    per-guest consumption). Drives forward demand from the surgery schedule.
+    //    {itemId: qty consumed per one case of that procedure}. LN2 in % of tank.
+    var procedureKits = {
+      'Mohs surgery':        {'i-tray':1,'i-lido':1,'i-lidoepi':1,'i-gauze':6,'i-cur':1,'i-nylon':1,'i-blade':1,'i-gloves':2,'i-alcl':1,'i-slides':2,'i-cover':2,'i-he':0,'i-petro':1},
+      'Excision, malignant': {'i-lidoepi':1,'i-gauze':4,'i-blade':1,'i-prol':1,'i-nylon':1,'i-gloves':2,'i-form':1,'i-tray':1,'i-petro':1},
+      'Excision, benign':    {'i-lido':1,'i-gauze':3,'i-blade':1,'i-nylon':1,'i-gloves':2,'i-form':1,'i-petro':1},
+      'Biopsy':              {'i-lido':1,'i-gauze':2,'i-blade':1,'i-gloves':1,'i-form':1,'i-alcl':1},
+      'Cryotherapy':         {'i-ln2':1.5,'i-gauze':1,'i-gloves':1,'i-petro':1},
+      'Phototherapy':        {'i-gloves':1}
+    };
+    // ── SURGERY SCHEDULE — the forward signal. Next ~2 weeks of booked cases.
+    //    inDays: 0=today,1=tomorrow… ; provider; cases by procedure type+count.
+    var schedule = [
+      {inDays:0, dow:'Mon', cases:[{type:'Biopsy',count:4},{type:'Cryotherapy',count:6},{type:'Excision, benign',count:2}]},
+      {inDays:1, dow:'Tue', cases:[{type:'Mohs surgery',count:6},{type:'Excision, malignant',count:2}]},
+      {inDays:2, dow:'Wed', cases:[{type:'Mohs surgery',count:5},{type:'Biopsy',count:3},{type:'Cryotherapy',count:4}]},
+      {inDays:3, dow:'Thu', cases:[{type:'Excision, malignant',count:3},{type:'Excision, benign',count:3},{type:'Biopsy',count:2}]},
+      {inDays:4, dow:'Fri', cases:[{type:'Mohs surgery',count:7},{type:'Cryotherapy',count:5}]},
+      {inDays:7, dow:'Mon', cases:[{type:'Biopsy',count:5},{type:'Cryotherapy',count:6},{type:'Phototherapy',count:4}]},
+      {inDays:8, dow:'Tue', cases:[{type:'Mohs surgery',count:6},{type:'Excision, malignant',count:2},{type:'Excision, benign',count:2}]},
+      {inDays:9, dow:'Wed', cases:[{type:'Mohs surgery',count:5},{type:'Biopsy',count:3}]},
+      {inDays:10,dow:'Thu', cases:[{type:'Excision, malignant',count:2},{type:'Excision, benign',count:4},{type:'Cryotherapy',count:3}]},
+      {inDays:11,dow:'Fri', cases:[{type:'Mohs surgery',count:8},{type:'Cryotherapy',count:4}]}
+    ].map(function(d,i){ return {id:'sch'+i, inDays:d.inDays, dow:d.dow, cases:d.cases, done:false}; });
     return {
       vendors:V, items:I, pos:[], purchases:purchases, caseLog:caseLog,
-      casesPerWeek:CASES_PER_WEEK,
+      casesPerWeek:CASES_PER_WEEK, procedureKits:procedureKits, schedule:schedule,
       priorAuth:[
         {id:'pa1', proc:'Mohs surgery', cpt:'17311', pt:'J.R.', ins:'United HC', stage:'Draft', ageDays:0},
         {id:'pa2', proc:'Excision, malignant', cpt:'11606', pt:'M.K.', ins:'Aetna', stage:'Submitted', ageDays:2},
@@ -164,11 +189,27 @@
   function advancePriorAuth(id,user){ var pa=data.priorAuth.filter(function(p){return p.id===id;})[0]; if(!pa) return; var i=PA_ORDER.indexOf(pa.stage); if(i<PA_ORDER.length-1){ pa.stage=PA_ORDER[i+1]; log(user,'Prior-auth advanced', pa.proc+' → '+pa.stage); persist(); } }
   function setPriorAuthStage(id,stage,user){ var pa=data.priorAuth.filter(function(p){return p.id===id;})[0]; if(!pa) return; pa.stage=stage; log(user,'Prior-auth',pa.proc+' → '+stage); persist(); }
   function sendPO(d){ return purchase(d); } // alias kept for older pages
+  /* ---------- schedule ops (forward surgery calendar) ---------- */
+  function kitFor(type){ return (data.procedureKits||{})[type]||{}; }
+  function completeCase(d){ // {id: schedule-day id, type, who} — log one case's kit & decrement the day
+    var day=(data.schedule||[]).filter(function(s){return s.id===d.id;})[0]; if(!day) return;
+    var c=day.cases.filter(function(x){return x.type===d.type;})[0]; if(!c||c.count<=0) return;
+    var kit=kitFor(d.type);
+    var items=Object.keys(kit).filter(function(k){return kit[k]>0 && k!=='i-ln2';}).map(function(k){return {itemId:k,qty:kit[k]};});
+    logCase({type:d.type, who:d.who||'Jess', items:items});           // FEFO-deducts + caseLog + audit + persist
+    if(kit['i-ln2']) useStock({itemId:'i-ln2', pct:kit['i-ln2'], user:d.who||'Jess'});
+    c.count-=1; if(c.count<=0){ day.cases=day.cases.filter(function(x){return x.type!==d.type;}); }
+    if(day.cases.length===0) day.done=true;
+    persist();
+  }
+  function addScheduleDay(d){ var day={id:uid('sch'), inDays:+d.inDays||0, dow:d.dow||'', cases:d.cases||[], done:false}; data.schedule.push(day); log(d.user,'Scheduled', (d.cases||[]).reduce(function(s,c){return s+c.count;},0)+' cases'); persist(); return day; }
   function reset(){ data=seed(); persist(); }
 
   w.STORE={ data:function(){return data;}, on:on, emit:emit, item:item, vendor:vendor, uid:uid, onHandOf:onHandOf,
     addItem:addItem, editItem:editItem, receive:receive, useStock:useStock, count:count, adjust:adjust,
     purchase:purchase, sendPO:sendPO, logCase:logCase, ln2Verify:ln2Verify,
+    schedule:function(){return data.schedule;}, procedureKits:function(){return data.procedureKits;}, kitFor:kitFor,
+    completeCase:completeCase, addScheduleDay:addScheduleDay,
     addVendor:addVendor, editVendor:editVendor,
     addPriorAuth:addPriorAuth, advancePriorAuth:advancePriorAuth, setPriorAuthStage:setPriorAuthStage, PA_ORDER:PA_ORDER,
     reset:reset, CASES_PER_WEEK:CASES_PER_WEEK };

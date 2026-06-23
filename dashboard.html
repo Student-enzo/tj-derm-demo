@@ -35,11 +35,54 @@ var DOMAINS=[
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 
+/* compact label for a procedure-type → the doctor's shorthand */
+function procLabel(t){
+  return {
+    'Mohs surgery':'Mohs',
+    'Excision, malignant':'malignant exc.',
+    'Excision, benign':'benign exc.',
+    'Biopsy':'biopsy',
+    'Cryotherapy':'cryo',
+    'Phototherapy':'photo'
+  }[t] || t;
+}
+
+/* "for 24 Mohs, 14 biopsy" — why this item is on the list */
+function driverWhy(drivers){
+  if(!drivers) return '';
+  var parts=Object.keys(drivers).map(function(t){ return drivers[t]+' '+procLabel(t); });
+  return parts.length ? 'for '+parts.join(', ') : '';
+}
+
 function approveReorder(id){
   var r=INV.reorderList().filter(function(x){return x.it.id===id;})[0];
   if(!r) return;
   STORE.purchase({itemId:id, qty:r.qty});
   TJ.toast('Ordered — your team takes it from here');
+}
+
+/* ---------- WEEK-AHEAD STRIP ---------- */
+/* one calm band: the booked week is already accounted for in supply */
+function renderWeekAhead(){
+  var load=INV.procedureLoad(7);
+  var total=(load&&load.total)||0;
+  if(total===0) return ''; // nothing booked → no band, stay uncluttered
+  var mohs=(load.byType&&load.byType['Mohs surgery'])||0;
+  var impact=INV.forecastImpact(7)||[];
+  var shortN=impact.filter(function(x){return x.short;}).length;
+
+  var supply = shortN===0
+    ? 'Supplies are handled — every item is covered.'
+    : 'Supplies are handled — '+shortN+' item'+(shortN===1?'':'s')+' would run short, and '+(shortN===1?"it's":"they're")+' already on the shopping list.';
+
+  var caseLine=total+' case'+(total===1?'':'s')+' booked this week'+(mohs>0?' ('+mohs+' Mohs)':'')+'.';
+
+  return '<div class="note" style="margin-top:16px">'+TJ.icon('calendar')+
+    '<div><div style="font-weight:600">'+caseLine+' '+esc(supply)+'</div>'+
+    '<div style="margin-top:6px;font-size:13px">'+
+      '<a href="schedule.html" style="font-weight:600;text-decoration:none">View schedule &rarr;</a>'+
+      '<a href="shopping.html" style="font-weight:600;text-decoration:none;margin-left:16px">Shopping list &rarr;</a>'+
+    '</div></div></div>';
 }
 
 /* ---------- HERO ---------- */
@@ -66,10 +109,12 @@ function renderHero(){
     var it=r.it;
     if(it.tank) return; // LN2 handled below
     var sev=(INV.onHand(it)<=it.reorderPoint)?'bad':'warn';
+    var why=driverWhy(r.drivers); // why the schedule needs it
     rows.push('<div class="lrow" style="flex-wrap:wrap;border-left:4px solid var('+(sev==='bad'?'--bad':'--warn')+')">'+
       '<div class="ic" style="color:var('+(sev==='bad'?'--bad-ink':'--warn-ink')+')">'+TJ.icon('box')+'</div>'+
       '<div style="min-width:0;flex:1 1 60%"><div class="t">'+esc(it.name)+' — only '+INV.onHand(it)+' left</div>'+
-      '<div class="d">'+esc(r.vendor||'')+' · suggested '+r.qty+' '+esc(it.unit)+'</div></div>'+
+      '<div class="d">'+esc(r.vendor||'')+' · suggested '+r.qty+' '+esc(it.unit)+
+        (why?' <span class="muted">· '+esc(why)+'</span>':'')+'</div></div>'+
       '<button class="btn primary sm" style="margin-left:auto;flex:none" onclick="approveReorder(\''+esc(it.id)+'\')">Approve</button>'+
       '</div>');
   });
@@ -151,6 +196,7 @@ function render(){
       '<h2>Good morning, Dr. Giuffrida</h2>'+
       '<p>Everything that needs you — nothing else.</p>'+
     '</div>'+
+    renderWeekAhead()+
     renderHero()+
     '<div class="grid g4" style="margin-top:16px">'+renderTiles()+'</div>'+
     renderLn2()+

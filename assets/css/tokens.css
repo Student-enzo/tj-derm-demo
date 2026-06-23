@@ -1,7 +1,9 @@
 /* ============================================================
    Dermatology & Skin Cancer Center — Design Tokens
-   Single palette: "Forest & Cream" — boutique-clinical.
-   Forest green + warm amber on cream, white cards, green/amber/red status.
+   Single palette: "Clinical Teal" — modern, high-contrast, premium.
+   Deep teal + bright cyan-teal accent on cool off-white, crisp white
+   cards, teal-green/amber/red status. Tuned to Dr. Giuffrida's brand
+   (miamidermcenter.com) but leveled up to AA-contrast clinical polish.
    Variable names kept stable so the component layer is untouched.
    ============================================================ */
 :root{
@@ -12,24 +14,25 @@
   --ease:cubic-bezier(.4,0,.2,1);
   --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-6:24px; --space-8:32px;
 
-  /* surfaces */
-  --bg:#f4f1e9; --panel:#fffdf8; --panel-2:#f4efe3; --panel-3:#ece4d4;
-  --line:#e7ddca; --line-2:#efe8d8;
-  /* ink */
-  --ink:#1c2b26; --ink-2:#566459; --ink-3:#8c948a;
-  /* brand */
-  --brand:#1e5c4a; --brand-2:#164a3b; --brand-ink:#ffffff;
-  --accent:#cf8a26; --accent-soft:#f5e8cf;
-  --ring:rgba(30,92,74,.30);
-  /* status */
-  --ok:#2f8f5b;  --ok-bg:#e3f0e4;  --ok-ink:#1e6940;
-  --warn:#c8861f; --warn-bg:#f8ebd0; --warn-ink:#8b5c12;
-  --bad:#c0432f;  --bad-bg:#f7e2db;  --bad-ink:#92301e;
-  /* sidebar (forest gradient) */
-  --sidebar:linear-gradient(180deg,#215f4c 0%,#163f33 100%);
-  --sidebar-ink:rgba(255,255,255,.68); --sidebar-ink-2:rgba(255,255,255,.40);
-  --sidebar-active-bg:rgba(208,138,38,.20); --sidebar-active:#f1cd86; --sidebar-active-bar:#d6932f;
-  /* elevation */
-  --shadow:0 1px 2px rgba(28,43,38,.05); --ring-1:inset 0 0 0 1px rgba(28,43,38,.07);
-  --scan:#2f8f5b;
+  /* surfaces — cool teal-tinted off-white, pure-white cards, layered greys */
+  --bg:#eef3f3; --panel:#ffffff; --panel-2:#e8f0ef; --panel-3:#dae7e5;
+  --line:#d2e0de; --line-2:#e3eceb;
+  /* ink — near-black teal-charcoal, high contrast */
+  --ink:#0f2a2e; --ink-2:#48605f; --ink-3:#7a8f8d;
+  /* brand — deep clinical teal */
+  --brand:#0d5a63; --brand-2:#093f48; --brand-ink:#ffffff;
+  /* accent — his powder-blue modernized into a clean cyan-teal */
+  --accent:#0a9c8e; --accent-soft:#d4ede9;
+  --ring:rgba(13,90,99,.32);
+  /* status — tuned to sit on the cool palette, meaning preserved */
+  --ok:#138a5f;  --ok-bg:#dcefe4;  --ok-ink:#0e6b4c;
+  --warn:#c2851a; --warn-bg:#f7eccf; --warn-ink:#8a5a0f;
+  --bad:#c2402b;  --bad-bg:#f8e1da;  --bad-ink:#9a2f1f;
+  /* sidebar — deep teal gradient, bright mint active */
+  --sidebar:linear-gradient(180deg,#0e5a63 0%,#072e34 100%);
+  --sidebar-ink:rgba(255,255,255,.72); --sidebar-ink-2:rgba(255,255,255,.42);
+  --sidebar-active-bg:rgba(10,156,142,.22); --sidebar-active:#7df0e0; --sidebar-active-bar:#0fb5a6;
+  /* elevation — cool teal-tinted */
+  --shadow:0 1px 2px rgba(9,40,46,.06); --ring-1:inset 0 0 0 1px rgba(9,40,46,.08);
+  --scan:#0fb5a6;
 }

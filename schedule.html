@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Surgery schedule &middot; Dermatology &amp; Skin Cancer Center</title>
+<link rel="icon" href="assets/img/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="backdrop" onclick="TJ.toggleNav()"></div>
+  <div class="main">
+    <header class="topbar" id="topbar"></header>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<script src="assets/js/store.js"></script>
+<script src="assets/js/inventory.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+TJ.mount({active:'schedule', onReady:render});
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+/* ---------- procedure metadata: icon + tint per type ---------- */
+var PROC_META={
+  'Mohs surgery':        {icon:'scissors', tint:'bad'},
+  'Excision, malignant': {icon:'scissors', tint:'warn'},
+  'Excision, benign':    {icon:'scissors', tint:'ok'},
+  'Biopsy':              {icon:'droplet',  tint:'neutral'},
+  'Cryotherapy':         {icon:'snow',     tint:'neutral'},
+  'Phototherapy':        {icon:'sparkles', tint:'neutral'}
+};
+function meta(type){ return PROC_META[type]||{icon:'box', tint:'neutral'}; }
+
+/* ---------- log one case → FEFO-deduct its kit ---------- */
+function logCaseOne(id, type){
+  STORE.completeCase({id:id, type:type, who:'Jess'});
+  TJ.toast('Logged — kit deducted from stock');
+}
+
+/* ---------- friendly day label ---------- */
+function whenLabel(inDays){
+  if(inDays<=0) return 'Today';
+  if(inDays===1) return 'Tomorrow';
+  return 'in '+inDays+' days';
+}
+
+/* ---------- KPI strip ---------- */
+function renderKpis(){
+  var wk=INV.procedureLoad(7), nx=INV.procedureLoad(14);
+  var mohs=wk.byType['Mohs surgery']||0;
+  var short=INV.forecastImpact(7).filter(function(x){return x.short;}).length;
+  function tile(v,l,danger){
+    return '<div class="panel kpi"><div class="v"'+(danger?' style="color:var(--bad-ink)"':'')+'>'+v+'</div><div class="l">'+l+'</div></div>';
+  }
+  return '<div class="grid g4" style="margin-top:16px">'+
+    tile(wk.total,'Cases this week')+
+    tile(mohs,'Mohs this week')+
+    tile(nx.total,'Cases next 14d')+
+    tile(short,'Items running short', short>0)+
+  '</div>';
+}
+
+/* ---------- one upcoming day card ---------- */
+function renderDayCard(day){
+  var cases=day.cases||[];
+  var total=cases.reduce(function(s,c){return s+(c.count||0);},0);
+  if(total<=0) return '';
+
+  var rows=cases.map(function(c){
+    var m=meta(c.type);
+    return '<div class="lrow">'+
+      '<div class="ic" style="color:var(--'+m.tint+'-ink)">'+TJ.icon(m.icon)+'</div>'+
+      '<div style="min-width:0"><div class="t">'+c.count+' &times; '+esc(c.type)+'</div></div>'+
+      '<button class="btn ghost sm" style="margin-left:auto;flex:none" '+
+        'onclick="logCaseOne(\''+esc(day.id)+'\',\''+esc(c.type)+'\')">Log one '+TJ.icon('check','ico-sm')+'</button>'+
+    '</div>';
+  }).join('');
+
+  return '<div class="panel" style="margin-top:14px">'+
+    '<div class="p-head">'+TJ.icon('calendar')+
+      '<strong>'+esc(day.dow||'')+' &middot; '+whenLabel(day.inDays)+'</strong>'+
+      '<span class="pill neutral" style="margin-left:auto">'+total+' case'+(total===1?'':'s')+'</span>'+
+    '</div>'+
+    rows+
+  '</div>';
+}
+
+/* ---------- list of upcoming days ---------- */
+function renderDays(){
+  var days=(STORE.schedule()||[]).filter(function(d){ return !d.done; })
+    .sort(function(a,b){ return a.inDays-b.inDays; });
+  var cards=days.map(renderDayCard).join('');
+  if(!cards){
+    return '<div class="panel" style="margin-top:14px"><div class="lrow">'+
+      '<div class="ic" style="color:var(--ok-ink)">'+TJ.icon('check')+'</div>'+
+      '<div class="t" style="color:var(--ink-2)">No cases booked — the calendar is clear.</div>'+
+    '</div></div>';
+  }
+  return cards;
+}
+
+/* ---------- projected stock impact ---------- */
+function renderImpact(){
+  var list=INV.forecastImpact(7).slice(0,8);
+  var rows=list.map(function(x){
+    var it=x.it, sev=x.short?'bad':'ok';
+    var unit=esc(it.unit||'units');
+    var afterTxt = x.projected<0
+      ? 'short by '+Math.abs(x.projected)
+      : x.projected+' after';
+    var hint = x.short
+      ? '<div class="d" style="color:var(--accent)">&rarr; already on the shopping list</div>'
+      : '';
+    return '<div class="lrow">'+
+      '<div class="ic" style="color:var(--ink-2)">'+TJ.icon(it.tank?'snow':'box')+'</div>'+
+      '<div style="min-width:0;flex:1 1 50%"><div class="t">'+esc(it.name)+'</div>'+
+      '<div class="d">needs '+x.need+' '+unit+' this week &middot; '+x.onHand+' on hand &rarr; '+afterTxt+'</div>'+
+      hint+'</div>'+
+      '<span class="pill '+sev+'" style="margin-left:auto;flex:none">'+
+        (x.short?'buy now to cover':'covered')+'</span>'+
+    '</div>';
+  }).join('');
+
+  if(!rows){
+    rows='<div class="lrow"><div class="t" style="color:var(--ink-2)">'+
+      'No supply pressure from the booked schedule — you are well stocked.</div></div>';
+  }
+  return '<div class="panel" style="margin-top:16px">'+
+    '<div class="p-head">'+TJ.icon('zap')+'<strong>Projected stock impact</strong>'+
+      '<span class="tiny" style="margin-left:auto">next 7 days</span></div>'+
+    rows+
+  '</div>';
+}
+
+/* ---------- RENDER ---------- */
+function render(){
+  var el=document.getElementById('content');
+  if(!el) return;
+  el.innerHTML=
+    '<div class="page-head">'+
+      '<div class="eyebrow">Surgery schedule</div>'+
+      '<h2>The week ahead</h2>'+
+      '<p>Every booked case is already costed in supplies. This is what drives your shopping list.</p>'+
+    '</div>'+
+    renderKpis()+
+    renderDays()+
+    renderImpact();
+}
+
+STORE.on(render);
+</script>
+</body>
+</html>

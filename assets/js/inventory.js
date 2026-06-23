@@ -41,26 +41,51 @@
   }
   function daysOfCover(it){ if(it.tank) return ln2(it).daysToEmpty; var u=it.usagePerWeek||needed(it); if(!u) return Infinity; return round(onHand(it)/(u/7),0); }
 
-  /* ----- buy-quantity (AYC-style):  buy = ceil( needed + par − on-hand ) ----- */
+  /* ----- FORWARD demand from the surgery schedule -------------------------
+     AYC reads upcoming charters (guests×hours×tier); we read upcoming surgery
+     days and multiply each booked case by its procedure kit. This is the brain. */
+  function schedule(){ return D().schedule||[]; }
+  function kitQty(type,id){ var k=(D().procedureKits||{})[type]||{}; return k[id]||0; }
+  function leadWindow(it){ var v=w.STORE.vendor(it.vendorId)||{}; return Math.max(7,(+v.leadDays||3)+4); } // plan-ahead days = lead time + safety
+  function scheduleNeed(it, days){ // units (or % for LN2) the booked schedule consumes within `days`
+    var sum=0; schedule().forEach(function(d){ if(d.done||d.inDays>days) return;
+      (d.cases||[]).forEach(function(c){ sum += (c.count||0)*kitQty(c.type, it.id); }); });
+    return round(sum,1);
+  }
+  function forecastNeed(it){ return scheduleNeed(it, leadWindow(it)); }       // demand over THIS item's window
+  function caseDrivers(it){ // which procedures drive this item's demand → the "why"
+    var m={}; schedule().forEach(function(d){ if(d.done||d.inDays>leadWindow(it)) return;
+      (d.cases||[]).forEach(function(c){ if((c.count||0)*kitQty(c.type,it.id)>0) m[c.type]=(m[c.type]||0)+c.count; }); });
+    return m;
+  }
+  function procedureLoad(days){ var m={}, total=0; schedule().forEach(function(d){ if(d.done||d.inDays>(days==null?14:days)) return;
+    (d.cases||[]).forEach(function(c){ m[c.type]=(m[c.type]||0)+c.count; total+=c.count; }); }); return {byType:m,total:total}; }
+  function projectedOnHand(it, days){ var d=(days==null?leadWindow(it):days);
+    if(it.tank) return round(ln2(it).estPct - scheduleNeed(it,d),0); return round(onHand(it) - scheduleNeed(it,d),0); }
+
+  /* ----- buy-quantity: now calendar-driven —  buy = ceil( forecast + par − on-hand ) ----- */
   function buyQty(it){
     if(it.tank){ return Math.max(0, Math.ceil(100 - ln2(it).estPct)); } // % to fill
-    var base = Math.max(0, Math.ceil(needed(it) + it.par - onHand(it)));
+    var fc=forecastNeed(it); var demand = fc>0 ? fc : needed(it);        // booked schedule, else flat weekly
+    var base = Math.max(0, Math.ceil(demand + it.par - onHand(it)));
     if(it.critical){ var jic = Math.max(0, Math.ceil(it.par + jicBuffer(it) - onHand(it))); return Math.max(base, jic); }
     return base;
   }
   function needsBuy(it){
-    if(it.tank) return ln2(it).status==='bad';
+    if(it.tank){ var l=ln2(it); return l.status==='bad' || (l.estPct - scheduleNeed(it,leadWindow(it))) <= it.tank.reorderPct; }
     var oh=onHand(it);
     if(oh<=it.reorderPoint) return true;
     if(it.critical && oh < it.par + jicBuffer(it)) return true;
+    if((oh - forecastNeed(it)) <= it.reorderPoint) return true;          // schedule will breach reorder before resupply
     return false;
   }
   function buyReason(it){
-    if(it.tank) return 'LN2 low';
+    if(it.tank) return ln2(it).status==='bad' ? 'LN2 low' : 'Cryo booked';
     var oh=onHand(it);
     if(oh<=0) return 'Out';
     if(it.critical && oh < it.par + jicBuffer(it)) return 'JIC';
     if(oh<=it.reorderPoint) return 'Low';
+    if((oh - forecastNeed(it)) <= it.reorderPoint) return 'Schedule';
     return '';
   }
 
@@ -70,8 +95,21 @@
 
   /* ----- derived lists ----- */
   function reorderList(){ return D().items.filter(needsBuy).map(function(it){
-    return {it:it, qty:buyQty(it), vendor:(w.STORE.vendor(it.vendorId)||{}).name, cost:round(buyQty(it)*it.unitCost,2), reason:buyReason(it)}; }); }
+    var v=w.STORE.vendor(it.vendorId)||{};
+    return {it:it, qty:buyQty(it), vendorId:it.vendorId, vendor:v.name, leadDays:v.leadDays,
+      cost:round(buyQty(it)*it.unitCost,2), reason:buyReason(it),
+      forecast:forecastNeed(it), window:leadWindow(it), drivers:caseDrivers(it),
+      projected:projectedOnHand(it)}; }); }
   var shoppingList = reorderList; // alias (AYC: "Shopping List")
+  function reorderByVendor(){ var g={}; reorderList().forEach(function(r){ var id=r.vendorId||'na';
+      (g[id]=g[id]||{vendorId:id, vendor:w.STORE.vendor(id)||{name:r.vendor||'Misc'}, lines:[], cost:0});
+      g[id].lines.push(r); g[id].cost=round(g[id].cost+r.cost,2); });
+    return Object.keys(g).map(function(k){return g[k];}).sort(function(a,b){return b.cost-a.cost;}); }
+  function forecastImpact(days){ var d=days||leadWindow({vendorId:null}); // what the schedule does to stock
+    return D().items.map(function(it){ var proj=projectedOnHand(it,d), need=scheduleNeed(it,d);
+      return {it:it, need:need, projected:proj, onHand:onHand(it),
+        short: it.tank ? (proj<=it.tank.reorderPct) : (proj<=it.reorderPoint)}; })
+      .filter(function(x){return x.need>0;}).sort(function(a,b){return a.projected-b.projected;}); }
   function expiringList(within){ var out=[]; D().items.forEach(function(it){ if(it.tank) return; (it.lots||[]).forEach(function(l){ if(l.expDays<=(within||30)) out.push({it:it,lot:l,days:l.expDays,bucket:expiryBucket(l.expDays)}); }); }); return out.sort(function(a,b){return a.days-b.days;}); }
   function domainRollup(){ var m={}; D().items.forEach(function(it){ var k=it.domain; (m[k]=m[k]||{count:0,worst:'ok',value:0,low:0}); m[k].count++; m[k].value+=itemValue(it); var s=status(it); if(needsBuy(it)) m[k].low++; if(s==='bad')m[k].worst='bad'; else if(s==='warn'&&m[k].worst!=='bad')m[k].worst='warn'; }); return m; }
 
@@ -100,8 +138,10 @@
 
   /* ----- transparency: the formulas in plain English ----- */
   var FORMULAS=[
-    {k:'Weekly demand', f:'avg-per-case × cases-per-week  ('+12+' cases/wk)'},
-    {k:'Buy quantity', f:'ceil( weekly-demand + par − on-hand )'},
+    {k:'Forecast demand', f:'Σ booked-cases × procedure-kit-qty, over the supplier lead window'},
+    {k:'Buy quantity', f:'ceil( forecast-demand + par − on-hand )'},
+    {k:'Reorder trigger', f:'on-hand − forecast ≤ reorder point  →  before you run short'},
+    {k:'Plan window', f:'max(7, supplier-lead-days + 4) — how far ahead each item plans'},
     {k:'JIC (critical) rule', f:'always keep par + ½·par; buy ceil(par + buffer − on-hand)'},
     {k:'Stock status', f:'out / ≤ reorder → red · < par or lot ≤30d → amber · else green'},
     {k:'FEFO pick', f:'first-expiring lot is used / dispensed first'},
@@ -114,6 +154,8 @@
   w.INV={ onHand:onHand, fefo:fefo, nextLot:nextLot, earliestExpiryDays:earliestExpiryDays, expiryBucket:expiryBucket,
     ln2:ln2, status:status, needed:needed, jicBuffer:jicBuffer, daysOfCover:daysOfCover,
     buyQty:buyQty, needsBuy:needsBuy, buyReason:buyReason, suggestedQty:buyQty,
+    scheduleNeed:scheduleNeed, forecastNeed:forecastNeed, leadWindow:leadWindow, caseDrivers:caseDrivers,
+    procedureLoad:procedureLoad, projectedOnHand:projectedOnHand, reorderByVendor:reorderByVendor, forecastImpact:forecastImpact,
     itemValue:itemValue, totalValue:totalValue, reorderList:reorderList, shoppingList:shoppingList,
     expiringList:expiringList, domainRollup:domainRollup, kpis:kpis, analytics:analytics, spend:spend,
     round:round, FORMULAS:FORMULAS };

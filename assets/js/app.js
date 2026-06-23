@@ -40,7 +40,12 @@
     file:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="m9 15 2 2 4-4"/>',
     home:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
     users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
-    swap:'<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>'
+    swap:'<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>',
+    calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+    mail:'<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+    cart:'<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
+    dollar:'<line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+    trend:'<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>'
   };
   function icon(name, cls){ return '<svg class="ico '+(cls||'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(P[name]||'')+'</svg>'; }
 
@@ -54,12 +59,15 @@
   /* ---------- ROLES + NAV ---------- */
   var NAV_BY_ROLE = {
     doctor: [
-      {id:'dashboard', label:'Today', icon:'stetho', href:'dashboard.html'}
+      {id:'dashboard', label:'Today', icon:'stetho', href:'dashboard.html'},
+      {id:'schedule', label:'This week', icon:'calendar', href:'schedule.html'}
     ],
     staff: [
       {id:'dashboard-ops', label:'Home',  icon:'home', href:'dashboard-ops.html'},
+      {id:'schedule', label:'Schedule',   icon:'calendar', href:'schedule.html'},
       {id:'inventory', label:'Inventory', icon:'box',  href:'inventory.html'},
       {id:'receive',label:'Receive',      icon:'scan', href:'receive-scan.html'},
+      {id:'shopping',label:'Shopping',    icon:'cart', href:'shopping.html'},
       {id:'vendors', label:'Vendors',     icon:'truck', href:'vendors.html'},
       {id:'spend',   label:'Spend',       icon:'zap',  href:'spend.html'}
     ],
@@ -67,8 +75,8 @@
       {id:'auth', label:'Prior Authorization', icon:'shield', href:'prior-auth.html'}
     ]
   };
-  var ACTIVE_ROLE = { dashboard:'doctor', 'dashboard-ops':'staff', inventory:'staff', stock:'staff', receive:'staff', vendors:'staff', spend:'staff', alerts:'staff', auth:'frontdesk' };
-  var TITLES = { dashboard:"Today", 'dashboard-ops':'Supply room', inventory:'Inventory', stock:'Inventory', receive:'Receive a delivery',
+  var ACTIVE_ROLE = { dashboard:'doctor', 'dashboard-ops':'staff', schedule:'staff', shopping:'staff', inventory:'staff', stock:'staff', receive:'staff', vendors:'staff', spend:'staff', alerts:'staff', auth:'frontdesk' };
+  var TITLES = { dashboard:"Today", 'dashboard-ops':'Supply room', schedule:'Surgery schedule', shopping:'Smart shopping list', inventory:'Inventory', stock:'Inventory', receive:'Receive a delivery',
     vendors:'Vendors & settings', spend:'Supply spend', alerts:'Alerts & reorder', auth:'Prior-authorization queue' };
   var ROLE = {
     doctor:    {label:'Doctor',      who:'Dr. Giuffrida', sub:'Owner · review only', av:'TG'},
@@ -156,8 +164,34 @@
 
   function qs(s,r){return (r||document).querySelector(s);} function qsa(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));}
 
+  /* ---------- smart vendor-order email (AYC draft-email, ported client-side) ----------
+     Builds a ready-to-send order email for one vendor from the live reorder list,
+     explaining WHY (the booked schedule that drives the quantities). */
+  function draftVendorEmail(vendorId){
+    var v=(w.STORE.vendor(vendorId)||{});
+    var groups=(w.INV?w.INV.reorderByVendor():[]);
+    var g=groups.filter(function(x){return x.vendorId===vendorId;})[0];
+    var subject='Supply order — Dermatology & Skin Cancer Center'+(v.acct?' (acct '+v.acct+')':'');
+    if(!g||!g.lines.length){ return {subject:subject, body:'Hi '+(v.name||'there')+' team,\n\nNothing needs ordering from you right now — our stock covers the booked schedule. Thank you!\n\nSupply Room — Dermatology & Skin Cancer Center', total:0, count:0}; }
+    var load=(w.INV?w.INV.procedureLoad(7):{total:0});
+    var lines=g.lines.map(function(r){
+      var why=Object.keys(r.drivers||{}).map(function(t){return r.drivers[t]+' '+t;}).join(', ');
+      return '  • '+r.qty+' × '+r.it.name+' ('+r.it.unit+')'+(why?'   — for '+why:'');
+    }).join('\n');
+    var lead=(v.leadDays!=null?v.leadDays:3);
+    var body=''+
+'Hi '+(v.name||'there')+' team,\n\n'+
+'Please process the following order for the Dermatology & Skin Cancer Center'+(v.acct?' (account '+v.acct+')':'')+':\n\n'+
+lines+'\n\n'+
+'These quantities cover our booked surgical schedule for the coming week ('+load.total+' cases) plus par levels. '+
+'Please confirm availability and expected delivery against your usual '+lead+'-day lead time.\n\n'+
+'Ship to: Dermatology & Skin Cancer Center, Coral Gables, FL.\n\n'+
+'Thank you,\nSupply Room — Dermatology & Skin Cancer Center';
+    return {subject:subject, body:body, total:g.cost, count:g.lines.length, group:g};
+  }
+
   w.TJ={ icon:icon, mount:mount, enter:enter, setRole:setRole, setTheme:setTheme, toggleNav:toggleNav,
          toast:toast, state:state, save:save, qs:qs, qsa:qsa,
-         money:money, modal:modal, closeModal:closeModal,
+         money:money, modal:modal, closeModal:closeModal, draftVendorEmail:draftVendorEmail,
          ROLE:ROLE, NAV_BY_ROLE:NAV_BY_ROLE };
 })(window);

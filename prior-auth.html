@@ -53,6 +53,17 @@ function hint(pa){
     default: return '';
   }
 }
+function dueLabel(p){
+  if(p.dueInDays==null) return '';
+  if(p.dueInDays<=0) return 'surgery today';
+  if(p.dueInDays===1) return 'surgery tomorrow';
+  return 'surgery in '+p.dueInDays+'d';
+}
+function dueSev(p){ // red if not yet approved and the surgery is inside the payer's turnaround
+  if(p.stage==='Approved'||p.dueInDays==null) return 'neutral';
+  var a=STORE.procAuth(p.proc), turn=a?a.turn:5;
+  return (p.dueInDays-turn)<=0 ? 'bad' : (p.dueInDays<=7?'warn':'neutral');
+}
 
 function setTab(t){ tab=t; render(); }
 
@@ -75,10 +86,12 @@ function render(){
     return true;
   });
 
-  // unapproved first, then ageDays DESC
+  // unapproved first, then soonest surgery date, then ageDays DESC
   rows.sort(function(a,b){
     var ua=(a.pa.stage!=='Approved')?0:1, ub=(b.pa.stage!=='Approved')?0:1;
     if(ua!==ub) return ua-ub;
+    var da=(a.pa.dueInDays==null?9999:a.pa.dueInDays), db=(b.pa.dueInDays==null?9999:b.pa.dueInDays);
+    if(da!==db) return da-db;
     return (b.pa.ageDays||0)-(a.pa.ageDays||0);
   });
 
@@ -101,7 +114,8 @@ function render(){
 
   var list=rows.map(function(r){
     var p=r.pa, st=p.stage, approved=(st==='Approved');
-    var sub='Pt. '+esc(p.pt)+' · '+esc(p.ins)+' · '+(p.ageDays||0)+'d waiting · blocks '+esc(apptLabel(r.idx));
+    var due=dueLabel(p), sev=dueSev(p);
+    var sub='Pt. '+esc(p.pt)+' · '+esc(p.ins)+(p.site&&p.site!=='—'?' · '+esc(p.site):'')+' · '+(p.ageDays||0)+'d waiting';
     var action=approved
       ? '<span class="pill ok" style="margin-left:auto">'+TJ.icon('check','ico-sm')+'Approved</span>'
       : '<button class="btn primary sm" style="margin-left:auto" onclick="advance(\''+p.id+'\')">Advance '+TJ.icon('arrow','ico-sm')+'</button>';
@@ -112,6 +126,8 @@ function render(){
         '<div class="d">'+sub+'</div>'+
         '<div class="d" style="margin-top:4px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">'+
           '<span class="pill '+STAGE_PILL[st]+'">'+esc(st)+'</span>'+
+          (due?'<span class="pill '+sev+'">'+TJ.icon('clock','ico-sm')+due+'</span>':'')+
+          (p.fromSchedule?'<span class="pill neutral">'+TJ.icon('calendar','ico-sm')+'from schedule</span>':'')+
           '<span>'+hint(p)+'</span>'+
         '</div>'+
       '</div>'+
@@ -124,7 +140,7 @@ function render(){
       '<div style="flex:1;min-width:240px">'+
         '<div class="eyebrow">Front desk</div>'+
         '<h2>Prior-authorization queue</h2>'+
-        '<p>Sorted by what’s on fire — with who to call and one-tap advance.</p>'+
+        '<p>Auto-created from the surgery schedule — each tied to its surgery date, sorted by what’s on fire.</p>'+
       '</div>'+
       '<button class="btn primary" onclick="newPA()">'+TJ.icon('plus','ico-sm')+'New prior-auth</button>'+
     '</div>'+

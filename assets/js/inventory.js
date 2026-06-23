@@ -63,6 +63,33 @@
   function projectedOnHand(it, days){ var d=(days==null?leadWindow(it):days);
     if(it.tank) return round(ln2(it).estPct - scheduleNeed(it,d),0); return round(onHand(it) - scheduleNeed(it,d),0); }
 
+  /* ----- LAYER 2: schedule → prior-auth — booked auth-requiring cases vs auths on file -----
+     The same surgery schedule that drives supplies also tells us which insurance
+     approvals are owed, and by when (deadline = surgery date). */
+  function authQueue(days){ var d=(days==null?7:days);
+    var load={}; schedule().forEach(function(day){ if(day.done||day.inDays>d) return;
+      (day.cases||[]).forEach(function(c){ var a=w.STORE.procAuth(c.type); if(!a||!a.needsAuth) return;
+        load[c.type]=load[c.type]||{cases:0, firstDay:Infinity, cpt:a.cpt, turn:a.turn};
+        load[c.type].cases+=c.count; load[c.type].firstDay=Math.min(load[c.type].firstDay, day.inDays); }); });
+    var pa=D().priorAuth||[];
+    return Object.keys(load).map(function(type){ var L=load[type];
+      var mine=pa.filter(function(p){return p.cpt===L.cpt;});
+      var approved=mine.filter(function(p){return p.stage==='Approved';}).length;
+      var inProgress=mine.filter(function(p){return p.stage!=='Approved';}).length;
+      var have=mine.length, missing=Math.max(0, L.cases-have);
+      var leadOk=(L.firstDay - L.turn) > 0;                 // enough lead time before the first case?
+      return {type:type, cpt:L.cpt, cases:L.cases, firstDay:L.firstDay, turn:L.turn,
+        approved:approved, inProgress:inProgress, have:have, missing:missing, leadOk:leadOk,
+        urgent:(missing>0)||(inProgress>0 && !leadOk)}; })
+      .sort(function(a,b){return a.firstDay-b.firstDay;}); }
+  function authSummary(days){ var q=authQueue(days);
+    return {types:q.length,
+      cases:q.reduce(function(s,r){return s+r.cases;},0),
+      missing:q.reduce(function(s,r){return s+r.missing;},0),
+      approved:q.reduce(function(s,r){return s+r.approved;},0),
+      inProgress:q.reduce(function(s,r){return s+r.inProgress;},0),
+      urgent:q.filter(function(r){return r.urgent;}).length}; }
+
   /* ----- buy-quantity: now calendar-driven —  buy = ceil( forecast + par − on-hand ) ----- */
   function buyQty(it){
     if(it.tank){ return Math.max(0, Math.ceil(100 - ln2(it).estPct)); } // % to fill
@@ -156,6 +183,7 @@
     buyQty:buyQty, needsBuy:needsBuy, buyReason:buyReason, suggestedQty:buyQty,
     scheduleNeed:scheduleNeed, forecastNeed:forecastNeed, leadWindow:leadWindow, caseDrivers:caseDrivers,
     procedureLoad:procedureLoad, projectedOnHand:projectedOnHand, reorderByVendor:reorderByVendor, forecastImpact:forecastImpact,
+    authQueue:authQueue, authSummary:authSummary,
     itemValue:itemValue, totalValue:totalValue, reorderList:reorderList, shoppingList:shoppingList,
     expiringList:expiringList, domainRollup:domainRollup, kpis:kpis, analytics:analytics, spend:spend,
     round:round, FORMULAS:FORMULAS };

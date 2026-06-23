@@ -73,6 +73,7 @@ function renderDayCard(day){
   var cases=day.cases||[];
   var total=cases.reduce(function(s,c){return s+(c.count||0);},0);
   if(total<=0) return '';
+  var needsAuth=cases.some(function(c){ var a=STORE.procAuth(c.type); return a&&a.needsAuth; });
 
   var rows=cases.map(function(c){
     var m=meta(c.type);
@@ -87,6 +88,7 @@ function renderDayCard(day){
   return '<div class="panel" style="margin-top:14px">'+
     '<div class="p-head">'+TJ.icon('calendar')+
       '<strong>'+esc(day.dow||'')+' &middot; '+whenLabel(day.inDays)+'</strong>'+
+      (needsAuth?'<span class="pill warn" style="margin-left:10px">'+TJ.icon('shield','ico-sm')+'needs auth</span>':'')+
       '<span class="pill neutral" style="margin-left:auto">'+total+' case'+(total===1?'':'s')+'</span>'+
     '</div>'+
     rows+
@@ -140,6 +142,43 @@ function renderImpact(){
   '</div>';
 }
 
+/* ---------- LAYER 2: schedule → prior-auth ---------- */
+function procShort(type){ return ({'Mohs surgery':'Mohs','Excision, malignant':'malignant excision','Excision, benign':'benign excision','Biopsy':'biopsy','Cryotherapy':'cryo','Phototherapy':'phototherapy'})[type]||type; }
+var PAYERS=['United HC','Aetna','Cigna','Florida Blue','Medicare','Humana'];
+function rand2(){ var A='ABCDEFGHJKLMNPRSTW'; return A[Math.floor(Math.random()*A.length)]+'.'+A[Math.floor(Math.random()*A.length)]+'.'; }
+function startAuths(type){
+  var r=INV.authQueue(7).filter(function(x){return x.type===type;})[0]; if(!r||r.missing<=0) return;
+  for(var i=0;i<r.missing;i++){ STORE.addPriorAuth({proc:type, cpt:r.cpt, pt:rand2(), ins:PAYERS[i%PAYERS.length], dueInDays:r.firstDay, fromSchedule:true, user:'Front desk'}); }
+  TJ.toast(r.missing+' authorization'+(r.missing===1?'':'s')+' started for '+procShort(type));
+}
+function renderAuth(){
+  var q=INV.authQueue(7), s=INV.authSummary(7);
+  if(!q.length) return '';
+  var rows=q.map(function(r){
+    var sev=r.missing>0?'bad':(r.inProgress>0&&!r.leadOk?'warn':'ok');
+    var status=r.missing>0 ? r.missing+' not started'
+      : (r.approved===r.cases?'all approved':r.inProgress+' in progress');
+    var action=r.missing>0
+      ? '<button class="btn primary sm" style="margin-left:auto;flex:none" onclick="startAuths(\''+esc(r.type)+'\')">Start '+r.missing+' '+TJ.icon('shield','ico-sm')+'</button>'
+      : '<span class="pill ok" style="margin-left:auto;flex:none">'+TJ.icon('check','ico-sm')+'on track</span>';
+    return '<div class="lrow">'+
+      '<div class="ic" style="color:var(--'+sev+'-ink)">'+TJ.icon('shield')+'</div>'+
+      '<div style="min-width:0;flex:1 1 50%"><div class="t">'+esc(procShort(r.type))+' &middot; CPT '+r.cpt+'</div>'+
+      '<div class="d">'+r.cases+' booked (first in '+r.firstDay+'d) &middot; '+r.have+' on file &middot; '+status+'</div></div>'+
+      action+
+    '</div>';
+  }).join('');
+  var head=s.missing>0 ? '<strong>'+s.missing+' prior-auth'+(s.missing===1?'':'s')+' not started</strong>'
+    : '<strong>Authorizations on track</strong>';
+  return '<div class="panel" style="margin-top:16px">'+
+    '<div class="p-head">'+TJ.icon('shield')+head+
+      '<span class="tiny" style="margin-left:auto">'+s.cases+' cases need auth this week</span></div>'+
+    '<div class="note" style="margin:0;border:none;background:var(--accent-soft)">'+TJ.icon('sparkles')+
+      '<div>Pulled straight from the schedule — every Mohs &amp; malignant excision needs payer approval before its surgery date. Start them in one tap; the front desk sees them instantly.</div></div>'+
+    rows+
+  '</div>';
+}
+
 /* ---------- RENDER ---------- */
 function render(){
   var el=document.getElementById('content');
@@ -148,9 +187,10 @@ function render(){
     '<div class="page-head">'+
       '<div class="eyebrow">Surgery schedule</div>'+
       '<h2>The week ahead</h2>'+
-      '<p>Every booked case is already costed in supplies. This is what drives your shopping list.</p>'+
+      '<p>Every booked case is already costed in supplies — and flags the insurance approvals it needs. One schedule, two workflows.</p>'+
     '</div>'+
     renderKpis()+
+    renderAuth()+
     renderDays()+
     renderImpact();
 }

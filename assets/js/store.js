@@ -103,11 +103,11 @@
       vendors:V, items:I, pos:[], purchases:purchases, caseLog:caseLog,
       casesPerWeek:CASES_PER_WEEK, procedureKits:procedureKits, schedule:schedule,
       priorAuth:[
-        {id:'pa1', proc:'Mohs surgery', cpt:'17311', pt:'J.R.', ins:'United HC', stage:'Draft', ageDays:0},
-        {id:'pa2', proc:'Excision, malignant', cpt:'11606', pt:'M.K.', ins:'Aetna', stage:'Submitted', ageDays:2},
-        {id:'pa3', proc:'Phototherapy series', cpt:'96910', pt:'D.S.', ins:'Cigna', stage:'Pending insurer', ageDays:4},
-        {id:'pa4', proc:'Biopsy, lesion', cpt:'11102', pt:'A.L.', ins:'Florida Blue', stage:'Approved', ageDays:6},
-        {id:'pa5', proc:'Excision, benign', cpt:'11402', pt:'R.P.', ins:'Medicare', stage:'Approved', ageDays:8}
+        {id:'pa1', proc:'Mohs surgery', cpt:'17311', pt:'J.R.', ins:'United HC', stage:'Draft', ageDays:0, dueInDays:1, site:'Nose', fromSchedule:true},
+        {id:'pa2', proc:'Excision, malignant', cpt:'11606', pt:'M.K.', ins:'Aetna', stage:'Submitted', ageDays:2, dueInDays:3, site:'Cheek', fromSchedule:true},
+        {id:'pa3', proc:'Phototherapy series', cpt:'96910', pt:'D.S.', ins:'Cigna', stage:'Pending insurer', ageDays:4, dueInDays:7, site:'—'},
+        {id:'pa4', proc:'Mohs surgery', cpt:'17311', pt:'A.L.', ins:'Florida Blue', stage:'Approved', ageDays:6, dueInDays:2, site:'Ear', fromSchedule:true},
+        {id:'pa5', proc:'Excision, benign', cpt:'11402', pt:'R.P.', ins:'Medicare', stage:'Approved', ageDays:8, dueInDays:null, site:'Back'}
       ],
       audit:[
         {ts:Date.now()-5400000, user:'Maria', action:'Received', detail:'120 × Surgical gauze 4×4'},
@@ -184,7 +184,17 @@
   function ln2Verify(d){ var it=item('i-ln2'); if(!it) return; it.tank.lastReadingPct=Math.max(0,Math.min(100,+d.pct)); it.tank.lastReadingDaysAgo=0; it.tank.dispensedSincePct=0; log(d.user,'Verified','LN2 reading '+it.tank.lastReadingPct+'%'); persist(); }
   function addVendor(d){ var v={id:uid('v'), name:d.name, acct:d.acct||'—', leadDays:+d.leadDays||3, email:d.email||''}; data.vendors.push(v); log(d.user,'Added vendor', v.name); persist(); return v; }
   function editVendor(d){ var v=vendor(d.vendorId); if(!v) return; if(d.name)v.name=d.name; if(d.acct!=null)v.acct=d.acct; if(d.leadDays!=null)v.leadDays=+d.leadDays; if(d.email!=null)v.email=d.email; log(d.user,'Edited vendor',v.name); persist(); }
-  function addPriorAuth(d){ var pa={id:uid('pa'), proc:d.proc, cpt:d.cpt||'', pt:d.pt||'—', ins:d.ins||'', stage:'Draft', ageDays:0}; data.priorAuth.unshift(pa); log(d.user,'Prior-auth created', d.proc+' ('+(d.ins||'')+')'); persist(); return pa; }
+  /* ---------- which procedures need prior auth (payer-side rules) ---------- */
+  var PROC_AUTH={
+    'Mohs surgery':        {cpt:'17311', needsAuth:true,  turn:5},
+    'Excision, malignant': {cpt:'11606', needsAuth:true,  turn:5},
+    'Phototherapy':        {cpt:'96910', needsAuth:true,  turn:7},
+    'Excision, benign':    {cpt:'11402', needsAuth:false, turn:0},
+    'Biopsy':              {cpt:'11102', needsAuth:false, turn:0},
+    'Cryotherapy':         {cpt:'17000', needsAuth:false, turn:0}
+  };
+  function procAuth(type){ return PROC_AUTH[type]||null; }
+  function addPriorAuth(d){ var pa={id:uid('pa'), proc:d.proc, cpt:d.cpt||'', pt:d.pt||'—', ins:d.ins||'', stage:'Draft', ageDays:0, dueInDays:(d.dueInDays!=null?+d.dueInDays:null), site:d.site||'', fromSchedule:!!d.fromSchedule}; data.priorAuth.unshift(pa); log(d.user,'Prior-auth created', d.proc+' ('+(d.ins||'')+')'+(d.dueInDays!=null?' · surgery in '+d.dueInDays+'d':'')); persist(); return pa; }
   var PA_ORDER=['Draft','Submitted','Pending insurer','Approved'];
   function advancePriorAuth(id,user){ var pa=data.priorAuth.filter(function(p){return p.id===id;})[0]; if(!pa) return; var i=PA_ORDER.indexOf(pa.stage); if(i<PA_ORDER.length-1){ pa.stage=PA_ORDER[i+1]; log(user,'Prior-auth advanced', pa.proc+' → '+pa.stage); persist(); } }
   function setPriorAuthStage(id,stage,user){ var pa=data.priorAuth.filter(function(p){return p.id===id;})[0]; if(!pa) return; pa.stage=stage; log(user,'Prior-auth',pa.proc+' → '+stage); persist(); }
@@ -209,7 +219,7 @@
     addItem:addItem, editItem:editItem, receive:receive, useStock:useStock, count:count, adjust:adjust,
     purchase:purchase, sendPO:sendPO, logCase:logCase, ln2Verify:ln2Verify,
     schedule:function(){return data.schedule;}, procedureKits:function(){return data.procedureKits;}, kitFor:kitFor,
-    completeCase:completeCase, addScheduleDay:addScheduleDay,
+    completeCase:completeCase, addScheduleDay:addScheduleDay, PROC_AUTH:PROC_AUTH, procAuth:procAuth,
     addVendor:addVendor, editVendor:editVendor,
     addPriorAuth:addPriorAuth, advancePriorAuth:advancePriorAuth, setPriorAuthStage:setPriorAuthStage, PA_ORDER:PA_ORDER,
     reset:reset, CASES_PER_WEEK:CASES_PER_WEEK };

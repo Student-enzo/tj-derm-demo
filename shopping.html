@@ -226,6 +226,20 @@ function emptyState(){
   '</div>';
 }
 
+function renderCommitment(){
+  var cc=INV.caseCommitment(7);
+  if(cc.total<=0 || cc.pending<=0) return '';
+  return '<div class="panel" style="margin-top:16px;border-left:4px solid var(--accent)">'+
+    '<div class="lrow" style="border:none">'+
+      '<div class="ic" style="color:var(--accent)">'+TJ.icon('shield')+'</div>'+
+      '<div style="min-width:0;flex:1"><div class="t">'+cc.pending+' of this week’s '+cc.total+' cases are still pending prior-auth</div>'+
+      '<div class="d">Their supplies are held until approval — so you don’t over-buy for cases that may cancel. '+
+        '<b>'+cc.committed+'</b> cases are auth-committed and safe to order now.</div></div>'+
+      '<a class="btn ghost sm" href="prior-auth.html" style="margin-left:auto;flex:none">Auth queue '+TJ.icon('arrow','ico-sm')+'</a>'+
+    '</div>'+
+  '</div>';
+}
+
 function render(){
   var groups=INV.reorderByVendor();
 
@@ -239,7 +253,7 @@ function render(){
   if(!groups.length){
     body=emptyState();
   } else {
-    body=renderKpis(groups)+groups.map(vendorPanel).join('');
+    body=renderKpis(groups)+renderCommitment()+groups.map(vendorPanel).join('');
   }
 
   document.getElementById('content').innerHTML=head+body;

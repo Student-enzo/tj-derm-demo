@@ -99,14 +99,21 @@
       {inDays:10,dow:'Thu', cases:[{type:'Excision, malignant',count:2},{type:'Excision, benign',count:4},{type:'Cryotherapy',count:3}]},
       {inDays:11,dow:'Fri', cases:[{type:'Mohs surgery',count:8},{type:'Cryotherapy',count:4}]}
     ].map(function(d,i){ return {id:'sch'+i, inDays:d.inDays, dow:d.dow, cases:d.cases, done:false}; });
+    // ── RESERVATIONS (Layer 3) — supplies committed to AUTH-APPROVED scheduled cases.
+    //    Reserved units are earmarked, so "available" stock = on-hand − reserved.
+    var mk=procedureKits['Mohs surgery'];
+    var reservations=[
+      {id:'res-seed', paId:'pa4', type:'Mohs surgery', at:Date.now()-6*86400000,
+       items:Object.keys(mk).filter(function(k){return mk[k]>0 && k!=='i-ln2';}).map(function(k){return {itemId:k,qty:mk[k]};})}
+    ];
     return {
-      vendors:V, items:I, pos:[], purchases:purchases, caseLog:caseLog,
+      vendors:V, items:I, pos:[], purchases:purchases, caseLog:caseLog, reservations:reservations,
       casesPerWeek:CASES_PER_WEEK, procedureKits:procedureKits, schedule:schedule,
       priorAuth:[
         {id:'pa1', proc:'Mohs surgery', cpt:'17311', pt:'J.R.', ins:'United HC', stage:'Draft', ageDays:0, dueInDays:1, site:'Nose', fromSchedule:true},
         {id:'pa2', proc:'Excision, malignant', cpt:'11606', pt:'M.K.', ins:'Aetna', stage:'Submitted', ageDays:2, dueInDays:3, site:'Cheek', fromSchedule:true},
         {id:'pa3', proc:'Phototherapy series', cpt:'96910', pt:'D.S.', ins:'Cigna', stage:'Pending insurer', ageDays:4, dueInDays:7, site:'—'},
-        {id:'pa4', proc:'Mohs surgery', cpt:'17311', pt:'A.L.', ins:'Florida Blue', stage:'Approved', ageDays:6, dueInDays:2, site:'Ear', fromSchedule:true},
+        {id:'pa4', proc:'Mohs surgery', cpt:'17311', pt:'A.L.', ins:'Florida Blue', stage:'Approved', ageDays:6, dueInDays:2, site:'Ear', fromSchedule:true, reserved:true},
         {id:'pa5', proc:'Excision, benign', cpt:'11402', pt:'R.P.', ins:'Medicare', stage:'Approved', ageDays:8, dueInDays:null, site:'Back'}
       ],
       audit:[
@@ -194,10 +201,26 @@
     'Cryotherapy':         {cpt:'17000', needsAuth:false, turn:0}
   };
   function procAuth(type){ return PROC_AUTH[type]||null; }
+  function cptType(cpt){ for(var t in PROC_AUTH){ if(PROC_AUTH[t].cpt===cpt) return t; } return null; }
+  /* ---------- LAYER 3: commit supplies once auth is approved ---------- */
+  function reserveForCase(d){ // {paId, type, user} — earmark a case's kit from available stock
+    var pa = d.paId ? data.priorAuth.filter(function(p){return p.id===d.paId;})[0] : null;
+    var type = d.type || (pa ? cptType(pa.cpt) : null); if(!type) return null;
+    var kit = (data.procedureKits||{})[type]||{};
+    var items = Object.keys(kit).filter(function(k){return kit[k]>0 && k!=='i-ln2';}).map(function(k){return {itemId:k, qty:kit[k]};});
+    var res={id:uid('res'), paId:d.paId||null, type:type, at:Date.now(), items:items};
+    data.reservations.push(res); if(pa) pa.reserved=true;
+    log(d.user,'Supplies committed', type+' kit reserved'+(pa?' for '+pa.pt:''));
+    persist(); return res;
+  }
+  function maybeCommit(pa, user){ // auto-reserve when an auth-requiring case is approved
+    if(!pa || pa.stage!=='Approved' || pa.reserved) return;
+    var t=cptType(pa.cpt); if(t && PROC_AUTH[t].needsAuth) reserveForCase({paId:pa.id, type:t, user:user});
+  }
   function addPriorAuth(d){ var pa={id:uid('pa'), proc:d.proc, cpt:d.cpt||'', pt:d.pt||'—', ins:d.ins||'', stage:'Draft', ageDays:0, dueInDays:(d.dueInDays!=null?+d.dueInDays:null), site:d.site||'', fromSchedule:!!d.fromSchedule}; data.priorAuth.unshift(pa); log(d.user,'Prior-auth created', d.proc+' ('+(d.ins||'')+')'+(d.dueInDays!=null?' · surgery in '+d.dueInDays+'d':'')); persist(); return pa; }
   var PA_ORDER=['Draft','Submitted','Pending insurer','Approved'];
-  function advancePriorAuth(id,user){ var pa=data.priorAuth.filter(function(p){return p.id===id;})[0]; if(!pa) return; var i=PA_ORDER.indexOf(pa.stage); if(i<PA_ORDER.length-1){ pa.stage=PA_ORDER[i+1]; log(user,'Prior-auth advanced', pa.proc+' → '+pa.stage); persist(); } }
-  function setPriorAuthStage(id,stage,user){ var pa=data.priorAuth.filter(function(p){return p.id===id;})[0]; if(!pa) return; pa.stage=stage; log(user,'Prior-auth',pa.proc+' → '+stage); persist(); }
+  function advancePriorAuth(id,user){ var pa=data.priorAuth.filter(function(p){return p.id===id;})[0]; if(!pa) return; var i=PA_ORDER.indexOf(pa.stage); if(i<PA_ORDER.length-1){ pa.stage=PA_ORDER[i+1]; log(user,'Prior-auth advanced', pa.proc+' → '+pa.stage); maybeCommit(pa,user); persist(); } }
+  function setPriorAuthStage(id,stage,user){ var pa=data.priorAuth.filter(function(p){return p.id===id;})[0]; if(!pa) return; pa.stage=stage; log(user,'Prior-auth',pa.proc+' → '+stage); maybeCommit(pa,user); persist(); }
   function sendPO(d){ return purchase(d); } // alias kept for older pages
   /* ---------- schedule ops (forward surgery calendar) ---------- */
   function kitFor(type){ return (data.procedureKits||{})[type]||{}; }
@@ -219,7 +242,8 @@
     addItem:addItem, editItem:editItem, receive:receive, useStock:useStock, count:count, adjust:adjust,
     purchase:purchase, sendPO:sendPO, logCase:logCase, ln2Verify:ln2Verify,
     schedule:function(){return data.schedule;}, procedureKits:function(){return data.procedureKits;}, kitFor:kitFor,
-    completeCase:completeCase, addScheduleDay:addScheduleDay, PROC_AUTH:PROC_AUTH, procAuth:procAuth,
+    completeCase:completeCase, addScheduleDay:addScheduleDay, PROC_AUTH:PROC_AUTH, procAuth:procAuth, cptType:cptType,
+    reservations:function(){return data.reservations;}, reserveForCase:reserveForCase,
     addVendor:addVendor, editVendor:editVendor,
     addPriorAuth:addPriorAuth, advancePriorAuth:advancePriorAuth, setPriorAuthStage:setPriorAuthStage, PA_ORDER:PA_ORDER,
     reset:reset, CASES_PER_WEEK:CASES_PER_WEEK };

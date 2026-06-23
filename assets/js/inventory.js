@@ -90,6 +90,20 @@
       inProgress:q.reduce(function(s,r){return s+r.inProgress;},0),
       urgent:q.filter(function(r){return r.urgent;}).length}; }
 
+  /* ----- LAYER 3: reservations — supplies committed to auth-approved cases ----- */
+  function reserved(itemId){ return (D().reservations||[]).reduce(function(s,r){
+    (r.items||[]).forEach(function(it){ if(it.itemId===itemId) s+=it.qty; }); return s; },0); }
+  function available(it){ if(it.tank) return round(ln2(it).estPct,0); return Math.max(0, onHand(it)-reserved(it.id)); }
+  function caseCommitment(days){ var d=(days==null?7:days); var load={};
+    schedule().forEach(function(day){ if(day.done||day.inDays>d) return; (day.cases||[]).forEach(function(c){
+      var a=w.STORE.procAuth(c.type); load[c.type]=load[c.type]||{cases:0, needsAuth:!!(a&&a.needsAuth), cpt:a?a.cpt:null}; load[c.type].cases+=c.count; }); });
+    var pa=D().priorAuth||[], committed=0, pending=0;
+    Object.keys(load).forEach(function(type){ var L=load[type];
+      if(!L.needsAuth){ committed+=L.cases; return; }
+      var appr=pa.filter(function(p){return p.cpt===L.cpt && p.stage==='Approved';}).length;
+      var c=Math.min(L.cases, appr); committed+=c; pending+=(L.cases-c); });
+    return {committed:committed, pending:pending, total:committed+pending}; }
+
   /* ----- buy-quantity: now calendar-driven —  buy = ceil( forecast + par − on-hand ) ----- */
   function buyQty(it){
     if(it.tank){ return Math.max(0, Math.ceil(100 - ln2(it).estPct)); } // % to fill
@@ -183,7 +197,7 @@
     buyQty:buyQty, needsBuy:needsBuy, buyReason:buyReason, suggestedQty:buyQty,
     scheduleNeed:scheduleNeed, forecastNeed:forecastNeed, leadWindow:leadWindow, caseDrivers:caseDrivers,
     procedureLoad:procedureLoad, projectedOnHand:projectedOnHand, reorderByVendor:reorderByVendor, forecastImpact:forecastImpact,
-    authQueue:authQueue, authSummary:authSummary,
+    authQueue:authQueue, authSummary:authSummary, reserved:reserved, available:available, caseCommitment:caseCommitment,
     itemValue:itemValue, totalValue:totalValue, reorderList:reorderList, shoppingList:shoppingList,
     expiringList:expiringList, domainRollup:domainRollup, kpis:kpis, analytics:analytics, spend:spend,
     round:round, FORMULAS:FORMULAS };
